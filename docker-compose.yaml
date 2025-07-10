@@ -1,0 +1,100 @@
+version: '3.4'
+services:
+  app1: &app
+    # image: lukas8219/rinha-be-2023-q3:latest
+    build: .
+    hostname: app1
+    environment:
+      MONGO_URI: "mongodb://mongo:27017"
+      PROCESSOR_URL: "http://payment-processor-default:8080"
+      FALLBACK_URL: "http://payment-processor-fallback:8080"
+      PROXY_URL: "http://payment-processor-default:8080"
+    networks:
+      - backend
+      - payment-processor
+    expose:
+      - "3000"
+    depends_on:
+      - mongo
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '10MB'
+  app2:
+    <<: *app
+    hostname: app2
+
+  nettools:
+    image: alpine:latest
+    container_name: nettools
+    command: /bin/sh -c "apk add --no-cache curl busybox-extras bind-tools iproute2 && sh"
+    tty: true
+    stdin_open: true
+    networks:
+      - backend
+      - payment-processor
+    depends_on:
+      - app1
+      - app2
+    environment: {}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.05'
+          memory: '200MB'
+    # You can exec into this container and use curl, ping, traceroute, telnet, dig, etc.
+    # Example: docker-compose exec nettools sh
+    # Then: curl http://app1:3000
+
+  mongo:
+    image: mongo:8.0
+    container_name: mongo
+    ports:
+      - 27017:27017
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: '100MB'
+
+  nginx: # Load Balancer
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app1
+      - app2
+    ports:
+      - "9999:9999"
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: '100MB'
+
+networks:
+  backend:
+    driver: bridge
+  payment-processor:
+    external: true

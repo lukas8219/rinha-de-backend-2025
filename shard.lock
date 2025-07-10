@@ -1,0 +1,34 @@
+version: 2.0
+shards:
+  backtracer:
+    git: https://github.com/sija/backtracer.cr.git
+    version: 1.2.4
+
+  bson:
+    git: https://github.com/elbywan/bson.cr.git
+    version: 0.3.6
+
+  circuit_breaker:
+    git: https://github.com/tpei/circuit_breaker.git
+    version: 0.0.6
+
+  cryomongo:
+    git: https://github.com/elbywan/cryomongo.git
+    version: 0.3.12
+
+  dns:
+    git: https://github.com/spider-gazelle/dns.git
+    version: 1.0.1+git.commit.f8f93b51799f35cedd8b88eb03efec864a8515e4
+
+  exception_page:
+    git: https://github.com/crystal-loot/exception_page.git
+    version: 0.5.0
+
+  kemal:
+    git: https://github.com/kemalcr/kemal.git
+    version: 1.7.1
+
+  radix:
+    git: https://github.com/luislavena/radix.git
+    version: 0.4.1
+

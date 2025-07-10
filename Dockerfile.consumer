@@ -1,0 +1,36 @@
+FROM crystallang/crystal:latest-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache build-base git shards
+
+# Copy shards files and install dependencies
+COPY shard.yml ./
+# Copy lock file if it exists
+COPY shard.lock* ./
+RUN shards install --production
+
+# Copy the rest of the application code
+COPY . .
+
+# Create bin directory and build the consumer application
+RUN mkdir -p bin
+RUN crystal build --release --no-debug -o bin/consumer src/consumer.cr
+
+# Final image - use alpine instead of scratch for better compatibility
+FROM alpine:latest
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache libgcc libstdc++ pcre2
+
+# Copy the built binary from builder
+COPY --from=builder /app/bin/consumer /app/consumer
+
+# Set environment variables
+ENV CRYSTAL_ENV=production
+
+# Run the consumer application
+CMD ["/app/consumer"]
