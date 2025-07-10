@@ -59,17 +59,10 @@ post "/payments" do |env|
       next {"error" => "Amount is required and must be a number"}.to_json
     end
 
-    if payment_data.description.nil? || payment_data.description.to_s.empty?
-      env.response.status_code = 400
-      next {"error" => "Description is required and must be a string"}.to_json
-    end
-
     # Create new payment
     new_payment = Payment.new(
       correlationId: payment_data.correlationId.not_nil!,
       amount: payment_data.amount.not_nil!,
-      description: payment_data.description.not_nil!,
-      timestamp: Time.utc.to_rfc3339
     )
 
     # Insert into MongoDB

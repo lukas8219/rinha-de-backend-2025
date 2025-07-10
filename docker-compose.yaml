@@ -5,10 +5,10 @@ services:
     build: .
     hostname: app1
     environment:
-      MONGO_URI: "mongodb://mongo:27017"
+      MONGO_URI: "mongodb://mongo:27017/challenge?w=0&j=false"
       PROCESSOR_URL: "http://payment-processor-default:8080"
       FALLBACK_URL: "http://payment-processor-fallback:8080"
-      PROXY_URL: "http://payment-processor-default:8080"
+      #PROXY_URL: "http://payment-processor-default:8080"
     networks:
       - backend
       - payment-processor
@@ -68,8 +68,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.1'
-          memory: '100MB'
+          cpus: '1'
+          memory: '200MB'
 
   nginx: # Load Balancer
     image: nginx:latest
