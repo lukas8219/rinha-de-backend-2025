@@ -2,6 +2,12 @@ require "kemal"
 require "json"
 require "./mongo_client"
 require "./payment_types"
+require "./circuit_breaker_wrapper"
+
+circuit_breaker_wrapper = CircuitBreakerWrapper.new(
+  ENV["PROCESSOR_URL"]?.try(&.presence).nil? ? nil : HttpClient.new(ENV["PROCESSOR_URL"]),
+  ENV["FALLBACK_URL"]?.try(&.presence).nil? ? nil : HttpClient.new(ENV["FALLBACK_URL"])
+)
 
 # Enable CORS
 before_all do |env|
@@ -39,27 +45,16 @@ post "/payments" do |env|
   env.response.content_type = "application/json"
   
   begin
-    # Check if we should proxy the request
-    if ENV["PROXY_URL"]?
-      # Proxy to another server
-      response = HTTP::Client.post("#{ENV["PROXY_URL"]}/payments", 
-        headers: HTTP::Headers{"Content-Type" => "application/json"},
-        body: env.request.body.try(&.gets_to_end) || ""
-      )
+    if ENV["USE_CIRCUIT_BREAKER"]?
+      #TODO stop parsing the body and use the circuit breaker wrapper directly
+      response = circuit_breaker_wrapper.send_payment(env.request.body.not_nil!, nil)
       env.response.status_code = response.status_code
       next response.body
+      return
     end
 
-    # Parse the JSON body
     payment_data = PaymentRequest.from_json(env.request.body.not_nil!)
     
-    # Validate the payment data
-    if payment_data.amount.nil? || !payment_data.amount.is_a?(Number)
-      env.response.status_code = 400
-      next {"error" => "Amount is required and must be a number"}.to_json
-    end
-
-    # Create new payment
     new_payment = Payment.new(
       correlationId: payment_data.correlationId.not_nil!,
       amount: payment_data.amount.not_nil!,

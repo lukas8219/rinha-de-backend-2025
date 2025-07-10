@@ -8,7 +8,8 @@ class HttpClient
   def initialize(@base_url : String)
   end
 
-  def send_payment(payment : Payment, token : String?) : Int32
+  # Accepts a buffer of data (String or IO) instead of a Payment object
+  def send_payment(data, token : String?)
     url = "#{@base_url}/payments"
     
     headers = HTTP::Headers.new
@@ -17,18 +18,12 @@ class HttpClient
     if token
       headers["Authorization"] = "Bearer #{token}"
     end
-
-    begin
-      response = HTTP::Client.post(url, headers: headers, body: payment.to_json)
-      
-      if response.success?
-        1
-      else
-        0
-      end
-    rescue ex
-      puts "HTTP request failed: #{ex.message}"
-      0
+    puts "Sending payment to #{url}"
+    response = HTTP::Client.post(url, headers: headers, body: data)
+    if response.success?
+      response
+    else
+      raise "Failed to send payment"
     end
   end
 end 

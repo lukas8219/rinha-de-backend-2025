@@ -8,7 +8,10 @@ services:
       MONGO_URI: "mongodb://mongo:27017/challenge?w=0&j=false"
       PROCESSOR_URL: "http://payment-processor-default:8080"
       FALLBACK_URL: "http://payment-processor-fallback:8080"
-      #PROXY_URL: "http://payment-processor-default:8080"
+      CIRCUIT_BREAKER_THRESHOLD: "5"
+      CIRCUIT_BREAKER_TIMEWINDOW: "15"
+      CIRCUIT_BREAKER_REENABLE_AFTER: "5"
+      USE_CIRCUIT_BREAKER: "true"
     networks:
       - backend
       - payment-processor
@@ -24,8 +27,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '10MB'
+          cpus: '0.1'
+          memory: '25MB'
   app2:
     <<: *app
     hostname: app2
@@ -68,8 +71,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: '200MB'
+          cpus: '0.5'
+          memory: '100MB'
 
   nginx: # Load Balancer
     image: nginx:latest
