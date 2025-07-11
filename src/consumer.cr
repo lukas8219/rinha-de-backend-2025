@@ -59,7 +59,7 @@ class Consumer
 
   def run
     begin
-      @pubsub_client.subscribe do |delivery|
+      @pubsub_client.subscribe { |delivery|
         begin
           puts "Received message: #{delivery.body}"
 
@@ -83,7 +83,7 @@ class Consumer
         rescue ex
           puts "Error processing message: #{ex.message}"
         end
-      end
+      }
     rescue ex
       puts "Error running consumer: #{ex.message}"
       exit(1)
