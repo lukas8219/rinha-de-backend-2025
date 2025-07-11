@@ -1,36 +1,34 @@
-FROM crystallang/crystal:latest-alpine AS builder
-
+FROM 84codes/crystal:latest-ubuntu-24.04 AS builder
+RUN apt-get update && apt-get install -y liblz4-dev dpkg-dev
 WORKDIR /app
-
-# Install build dependencies
-RUN apk add --no-cache build-base git shards
-
-# Copy shards files and install dependencies
-COPY shard.yml ./
-# Copy lock file if it exists
-COPY shard.lock* ./
+COPY shard.yml shard.lock ./
 RUN shards install --production
 
 # Copy the rest of the application code
 COPY . .
 
-# Create bin directory and build the consumer application
+# Create bin directory and build the application
 RUN mkdir -p bin
 RUN crystal build --release --no-debug -o bin/consumer src/consumer.cr
 
-# Final image - use alpine instead of scratch for better compatibility
-FROM alpine:latest
+# Final image - use ubuntu for compatibility with the built binary
+FROM ubuntu:24.04
 
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apk add --no-cache libgcc libstdc++ pcre2
+RUN apt-get update && apt-get install -y libgcc-s1 libstdc++6 net-tools && rm -rf /var/lib/apt/lists/*
 
 # Copy the built binary from builder
-COPY --from=builder /app/bin/consumer /app/consumer
+COPY --from=builder /app/bin/consumer ./consumer
+
+# Expose the port the app listens on
+EXPOSE 3000
 
 # Set environment variables
 ENV CRYSTAL_ENV=production
 
-# Run the consumer application
-CMD ["/app/consumer"]
+# Run the application
+ENTRYPOINT ["./consumer"]
+
+

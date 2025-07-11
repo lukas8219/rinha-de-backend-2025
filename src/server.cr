@@ -3,11 +3,14 @@ require "json"
 require "./mongo_client"
 require "./payment_types"
 require "./circuit_breaker_wrapper"
+require "./amqp/pubsub-client"
 
 circuit_breaker_wrapper = CircuitBreakerWrapper.new(
   ENV["PROCESSOR_URL"]?.try(&.presence).nil? ? nil : HttpClient.new(ENV["PROCESSOR_URL"]),
   ENV["FALLBACK_URL"]?.try(&.presence).nil? ? nil : HttpClient.new(ENV["FALLBACK_URL"])
 )
+
+pubsub_client = PubSubClient.new(ENV["AMQP_URL"]?.not_nil!)
 
 # Enable CORS
 before_all do |env|
@@ -63,10 +66,12 @@ post "/payments" do |env|
     # Insert into MongoDB
     mongo_client = MongoClient.instance
     collection = mongo_client.db("challenge").collection("requested_payments")
+    payment_json = new_payment.to_json
     collection.insert_one(new_payment.to_bson)
+    pubsub_client.publish(payment_json)
 
     env.response.status_code = 201
-    new_payment.to_json
+    payment_json
     
   rescue JSON::ParseException
     env.response.status_code = 400

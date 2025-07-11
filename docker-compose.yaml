@@ -11,14 +11,18 @@ services:
       CIRCUIT_BREAKER_THRESHOLD: "5"
       CIRCUIT_BREAKER_TIMEWINDOW: "15"
       CIRCUIT_BREAKER_REENABLE_AFTER: "5"
-      USE_CIRCUIT_BREAKER: "true"
+      AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
     networks:
       - backend
       - payment-processor
     expose:
       - "3000"
     depends_on:
-      - mongo
+      lavinmq:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
     ulimits:
       nproc: 1000000
       nofile:
@@ -28,32 +32,59 @@ services:
       resources:
         limits:
           cpus: '0.1'
-          memory: '25MB'
+          memory: '20MB'
   app2:
     <<: *app
     hostname: app2
 
-  nettools:
-    image: alpine:latest
-    container_name: nettools
-    command: /bin/sh -c "apk add --no-cache curl busybox-extras bind-tools iproute2 && sh"
-    tty: true
-    stdin_open: true
+  consumer:
+    <<: *app
+    hostname: consumer
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+
+  lavinmq:
+    image: cloudamqp/lavinmq:latest
+    container_name: lavinmq
+    healthcheck:
+      test: ["CMD", "lavinmqctl", "status"]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+      start_period: 2s
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - backend
-      - payment-processor
-    depends_on:
-      - app1
-      - app2
-    environment: {}
     deploy:
       resources:
         limits:
-          cpus: '0.05'
-          memory: '200MB'
-    # You can exec into this container and use curl, ping, traceroute, telnet, dig, etc.
-    # Example: docker-compose exec nettools sh
-    # Then: curl http://app1:3000
+          cpus: '0.1'
+          memory: '35MB'
+
+  # nettools:
+  #   image: alpine:latest
+  #   container_name: nettools
+  #   command: /bin/sh -c "apk add --no-cache curl busybox-extras bind-tools iproute2 && sh"
+  #   tty: true
+  #   stdin_open: true
+  #   networks:
+  #     - backend
+  #     - payment-processor
+  #   depends_on:
+  #     - app1
+  #     - app2
+  #   environment: {}
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.05'
+  #         memory: '200MB'
+  #   # You can exec into this container and use curl, ping, traceroute, telnet, dig, etc.
+  #   # Example: docker-compose exec nettools sh
+  #   # Then: curl http://app1:3000
 
   mongo:
     image: mongo:8.0
@@ -62,17 +93,17 @@ services:
       - 27017:27017
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
-      timeout: 5s
+      interval: 1s
+      timeout: 1s
       retries: 20
-      start_period: 10s
+      start_period: 2s
     networks:
       - backend
     deploy:
       resources:
         limits:
           cpus: '0.5'
-          memory: '100MB'
+          memory: '150MB'
 
   nginx: # Load Balancer
     image: nginx:latest
@@ -94,7 +125,7 @@ services:
       resources:
         limits:
           cpus: '0.1'
-          memory: '100MB'
+          memory: '35MB'
 
 networks:
   backend:
