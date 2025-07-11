@@ -19,17 +19,23 @@ class CircuitBreakerWrapper
     begin
       @circuit_breaker.run do
         response = @process_client.not_nil!.send_payment(data, token)
-        {
-          "response" => response,
-          "processor" => "default"
-        }
+        if response.success?
+          return {
+            "response" => response,
+            "processor" => "default"
+          }
+        end
+        raise "Processor failed"
       end
     rescue ex
       response = @fallback_client.not_nil!.send_payment(data, token)
-      {
-        "response" => response,
-        "processor" => "fallback"
-      }
+      if response.success?
+        return {
+          "response" => response,
+          "processor" => "fallback"
+        }
+      end
+      raise "Fallback failed"
     end
   end
 

@@ -99,6 +99,7 @@ post "/payments" do |env|
     new_payment = Payment.new(
       correlationId: payment_data.correlationId.not_nil!,
       amount: payment_data.amount.not_nil!,
+      requestedAt: Time.utc
     )
 
     # Insert into MongoDB

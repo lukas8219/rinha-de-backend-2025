@@ -49,7 +49,8 @@ class Consumer
 
   def trigger_process
     return if @successful_batches.empty?
-    
+
+    puts "Starting Insert Batch"
     to_insert = @successful_batches.dup
     @successful_batches.clear
     @last_insert = Time.utc
@@ -69,7 +70,7 @@ class Consumer
     puts "Listening for messages on AMQP queue: #{@pubsub_client.@queue_name}"
     @pubsub_client.subscribe do |delivery|
       begin
-        response = @circuit_breaker.send_payment(delivery.body_io.to_s, ENV["TOKEN"]?)
+        response = @circuit_breaker.send_payment(PaymentProcessorRequest.from_json(delivery.body_io.to_s), ENV["TOKEN"]?)
         add_successful_payment(Payment.from_json(delivery.body_io.to_s), response["processor"].to_s)
       rescue ex
         puts "Error processing message: #{ex.message}"
