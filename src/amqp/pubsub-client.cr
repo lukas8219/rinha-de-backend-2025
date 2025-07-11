@@ -17,7 +17,9 @@ class PubSubClient
 
   def subscribe(&block)
     @channel.queue_declare(@queue_name, durable: false)
-    @channel.basic_consume(@queue_name, no_ack: true, &block)
+    @channel.basic_consume(@queue_name, no_ack: true) do |delivery|
+      block.call(delivery)
+    end
   end
 
   def close

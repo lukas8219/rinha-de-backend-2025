@@ -27,7 +27,6 @@ class Consumer
     amqp_url = ENV["AMQP_URL"]?.not_nil! # PubSubClient expects a string
     @pubsub_client = PubSubClient.new(amqp_url)
     
-    # Start batch processing timer
     start_batch_timer
   end
 
@@ -60,10 +59,6 @@ class Consumer
 
   def run
     begin
-      queue_name = ENV["QUEUE_NAME"]? || "processor:queue"
-      puts "Listening for messages on AMQP queue: #{queue_name}"
-
-      # Use PubSubClient's subscribe method
       @pubsub_client.subscribe do |delivery|
         begin
           puts "Received message: #{delivery.body}"
@@ -76,29 +71,19 @@ class Consumer
 
           puts "Processing payment: #{payment.to_json}"
 
-          # Send through circuit breaker
           success = @circuit_breaker.send_payment(payment, ENV["TOKEN"]?)
 
           if success
             puts "Payment processed successfully"
             add_successful_payment(payment)
-            # PubSubClient uses no_ack: true, so no manual ack needed
           else
             puts "Payment processing failed"
-            # With no_ack: true, cannot requeue, so just log
           end
 
         rescue ex
           puts "Error processing message: #{ex.message}"
-          # With no_ack: true, cannot reject, just log
         end
       end
-
-      # Keep the consumer running
-      loop do
-        sleep 1
-      end
-
     rescue ex
       puts "Error running consumer: #{ex.message}"
       exit(1)
