@@ -15,9 +15,9 @@ class PubSubClient
     @channel.basic_publish(message, "", @queue_name)
   end
 
-  def subscribe(&block)
+  def subscribe(&block : AMQP::Client::DeliverMessage -> Nil)
     @channel.queue_declare(@queue_name, durable: false)
-    @channel.basic_consume(@queue_name, no_ack: true) do |delivery|
+    @channel.basic_consume(@queue_name, no_ack: true, work_pool: System.cpu_count) do |delivery|
       block.call(delivery)
     end
   end

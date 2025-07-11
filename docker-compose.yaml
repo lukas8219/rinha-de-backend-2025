@@ -44,15 +44,22 @@ services:
       context: .
       dockerfile: Dockerfile.consumer
 
+  consumer2:
+    <<: *app
+    hostname: consumer2
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+
   lavinmq:
     image: cloudamqp/lavinmq:latest
     container_name: lavinmq
     healthcheck:
       test: ["CMD", "lavinmqctl", "status"]
-      interval: 1s
-      timeout: 1s
-      retries: 10
-      start_period: 2s
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 5s
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -93,8 +100,8 @@ services:
       - 27017:27017
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 1s
-      timeout: 1s
+      interval: 10s
+      timeout: 5s
       retries: 20
       start_period: 2s
     networks:

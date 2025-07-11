@@ -13,8 +13,8 @@ class Consumer
   @pubsub_client : PubSubClient
 
   def initialize
-    process_client = HttpClient.new(ENV["PROCESSOR_URL"])
-    fallback_client = HttpClient.new(ENV["FALLBACK_URL"])
+    process_client = HttpClient.new(ENV["PROCESSOR_URL"]?.not_nil!)
+    fallback_client = HttpClient.new(ENV["FALLBACK_URL"]?.not_nil!)
     
     @circuit_breaker = CircuitBreakerWrapper.new(process_client, fallback_client)
     
@@ -33,7 +33,7 @@ class Consumer
   def start_batch_timer
     spawn do
       loop do
-        sleep 0.125 # 125ms
+        sleep 0.125.seconds # 125ms
         trigger_process
       end
     end
@@ -53,40 +53,20 @@ class Consumer
     # Convert payments to BSON format
     bson_docs = to_insert.map(&.to_bson)
     @processed_payments.insert_many(bson_docs)
-    
-    puts "Batch inserted #{to_insert.size} successful payments"
   end
 
   def run
-    begin
-      @pubsub_client.subscribe { |delivery|
-        begin
-          puts "Received message: #{delivery.body}"
-
-          payment_data = JSON.parse(delivery.body)
-          payment = Payment.new(
-            amount: payment_data["amount"].as_f,
-            correlationId: payment_data["correlationId"].as_s
-          )
-
-          puts "Processing payment: #{payment.to_json}"
-
-          success = @circuit_breaker.send_payment(payment, ENV["TOKEN"]?)
-
-          if success
-            puts "Payment processed successfully"
-            add_successful_payment(payment)
-          else
-            puts "Payment processing failed"
-          end
-
-        rescue ex
-          puts "Error processing message: #{ex.message}"
+    puts "Listening for messages on AMQP queue: #{@pubsub_client.@queue_name}"
+    @pubsub_client.subscribe do |delivery|
+      begin
+        success = @circuit_breaker.send_payment(delivery.body_io, ENV["TOKEN"]?)
+        if success
+          add_successful_payment(Payment.from_json(delivery.body_io.to_s))
         end
-      }
-    rescue ex
-      puts "Error running consumer: #{ex.message}"
-      exit(1)
+      rescue ex
+        puts "Error processing message: #{ex.message}"
+        exit(1)
+      end
     end
   end
 
@@ -104,3 +84,6 @@ end
 # Start the consumer
 consumer = Consumer.new
 consumer.run 
+loop do
+  sleep 1.seconds
+end
