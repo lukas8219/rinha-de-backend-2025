@@ -8,7 +8,7 @@ require "./payment_types"
 class Consumer
   @circuit_breaker : CircuitBreakerWrapper
   @processed_payments : Mongo::Collection
-  @successful_batches : Array(Payment)
+  @successful_batches : Array(Hash(String, Payment | String | Time))
   @last_insert : Time
   @pubsub_client : PubSubClient
 
@@ -21,7 +21,7 @@ class Consumer
     mongo_client = MongoClient.instance
     @processed_payments = mongo_client.db("challenge").collection("processed_payments")
     
-    @successful_batches = [] of Payment
+    @successful_batches = [] of Hash(String, Payment | String | Time)
     @last_insert = Time.utc
 
     amqp_url = ENV["AMQP_URL"]?.not_nil! # PubSubClient expects a string
@@ -39,8 +39,12 @@ class Consumer
     end
   end
 
-  def add_successful_payment(payment : Payment)
-    @successful_batches << payment
+  def add_successful_payment(payment : Payment, processor : String)
+    @successful_batches << {
+      "payment" => payment,
+      "processor" => processor,
+      "timestamp" => Time.utc
+    }
   end
 
   def trigger_process
@@ -49,9 +53,15 @@ class Consumer
     to_insert = @successful_batches.dup
     @successful_batches.clear
     @last_insert = Time.utc
-    
-    # Convert payments to BSON format
-    bson_docs = to_insert.map(&.to_bson)
+
+    bson_docs = to_insert.map do |entry|
+      BSON.new({
+        "correlationId" => entry["payment"].as(Payment).correlationId,
+        "amount" => entry["payment"].as(Payment).amount.to_f,
+        "processor" => entry["processor"].to_s,
+        "timestamp" => entry["timestamp"].as(Time)
+      })
+    end
     @processed_payments.insert_many(bson_docs)
   end
 
@@ -59,13 +69,10 @@ class Consumer
     puts "Listening for messages on AMQP queue: #{@pubsub_client.@queue_name}"
     @pubsub_client.subscribe do |delivery|
       begin
-        success = @circuit_breaker.send_payment(delivery.body_io, ENV["TOKEN"]?)
-        if success
-          add_successful_payment(Payment.from_json(delivery.body_io.to_s))
-        end
+        response = @circuit_breaker.send_payment(delivery.body_io.to_s, ENV["TOKEN"]?)
+        add_successful_payment(Payment.from_json(delivery.body_io.to_s), response["processor"].to_s)
       rescue ex
         puts "Error processing message: #{ex.message}"
-        exit(1)
       end
     end
   end

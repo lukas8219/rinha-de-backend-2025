@@ -25,18 +25,56 @@ end
 
 get "/payments-summary" do |env|
   env.response.content_type = "application/json"
-  
+
   begin
+    # Both 'from' and 'to' query parameters are required
+    from_param = env.params.query["from"]?
+    to_param = env.params.query["to"]?
+
+    unless from_param && to_param
+      env.response.status_code = 400
+      next({"error" => "'from' and 'to' query parameters are required in ISO8601 format"}.to_json)
+    end
+
+    begin
+      from_time = Time.parse_iso8601(from_param)
+      to_time = Time.parse_iso8601(to_param)
+    rescue ex
+      env.response.status_code = 400
+      next({"error" => "Invalid 'from' or 'to' timestamp format. Use ISO8601."}.to_json)
+    end
+
+    mongo_client = MongoClient.instance
+    collection = mongo_client.db("challenge").collection("processed_payments")
+
+    # Build the match stage for the pipeline with both from and to
+    match_stage = {
+      "timestamp" => { "$gte" => from_time, "$lte" => to_time }
+    }
+
+    pipeline = [
+      BSON.new({ "$match" => match_stage }),
+      BSON.new({
+        "$group" => {
+          "_id" => "$processor",
+          "totalRequests" => { "$sum" => 1 },
+          "totalAmount" => { "$sum" => "$amount" }
+        }
+      })
+    ]
+
+    result = collection.aggregate(pipeline)
     summary = {
-      "default" => {
-        "totalRequests" => 0,
-        "totalAmount" => 0
-    },
-    "fallback" => {
-        "totalRequests" => 0,
-        "totalAmount" => 0
+      "default" => { "totalRequests" => 0, "totalAmount" => 0.0 },
+      "fallback" => { "totalRequests" => 0, "totalAmount" => 0.0 }
     }
-    }
+    result.not_nil!.each do |doc|
+      processor = doc["_id"].to_s
+      summary[processor] = {
+        "totalRequests" => doc["totalRequests"].as(Int32).to_i,
+        "totalAmount" => doc["totalAmount"].as(Float64).to_f
+      }
+    end
     summary.to_json
   rescue ex
     env.response.status_code = 500
@@ -51,8 +89,8 @@ post "/payments" do |env|
     if ENV["USE_CIRCUIT_BREAKER"]?
       #TODO stop parsing the body and use the circuit breaker wrapper directly
       response = circuit_breaker_wrapper.send_payment(env.request.body.not_nil!, nil)
-      env.response.status_code = response.status_code
-      next response.body
+      env.response.status_code = response["response"].as(HTTP::Client::Response).status_code
+      next response["response"].as(HTTP::Client::Response).body
       return
     end
 

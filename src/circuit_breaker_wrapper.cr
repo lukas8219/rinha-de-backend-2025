@@ -18,12 +18,18 @@ class CircuitBreakerWrapper
   def send_payment(data, token : String?)
     begin
       @circuit_breaker.run do
-        puts "Processor"
-        @process_client.not_nil!.send_payment(data, token)
+        response = @process_client.not_nil!.send_payment(data, token)
+        {
+          "response" => response,
+          "processor" => "default"
+        }
       end
     rescue ex
-      puts "Fallback"
-      @fallback_client.not_nil!.send_payment(data, token)
+      response = @fallback_client.not_nil!.send_payment(data, token)
+      {
+        "response" => response,
+        "processor" => "fallback"
+      }
     end
   end
 
