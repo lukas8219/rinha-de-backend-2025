@@ -1,0 +1,28 @@
+# Crystal
+/bin/
+/lib/
+/.shards/
+*.dwarf
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Node.js (from original project)
+node_modules/
+package-lock.json 

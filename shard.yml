@@ -1,0 +1,24 @@
+name: rinha-2025
+version: 0.1.0
+
+authors:
+  - Your Name <your.email@example.com>
+
+targets:
+  rinha-2025:
+    main: src/rinha-2025.cr
+
+dependencies:
+  kemal:
+    github: kemalcr/kemal
+    version: ~> 1.7.0
+  cryomongo:
+    github: elbywan/cryomongo
+    version: ~> 0.3.0
+  circuit_breaker:
+    github: TPei/circuit_breaker
+    version: ~> 0.0.6
+
+crystal: 1.0.0
+
+license: MIT 
