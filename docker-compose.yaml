@@ -4,6 +4,16 @@ services:
     # image: lukas8219/rinha-be-2023-q3:latest
     build: .
     hostname: app1
+    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-app1.data", "./server"]
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - ./profiling-data:/app/profiling-data
     environment:
       MONGO_URI: "mongodb://mongo:27017/challenge?w=0&j=false"
       PROCESSOR_URL: "http://payment-processor-default:8080"
@@ -35,11 +45,13 @@ services:
           memory: '20MB'
   app2:
     <<: *app
+    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-app2.data", "./server"]
     hostname: app2
 
   consumer:
     <<: *app
     hostname: consumer
+    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-consumer.data", "./consumer"]
     build:
       context: .
       dockerfile: Dockerfile.consumer
@@ -47,6 +59,7 @@ services:
   consumer2:
     <<: *app
     hostname: consumer2
+    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-consumer2.data", "./consumer"]
     build:
       context: .
       dockerfile: Dockerfile.consumer
