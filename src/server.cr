@@ -102,15 +102,10 @@ post "/payments" do |env|
       requestedAt: Time.utc
     )
 
-    # Insert into MongoDB
-    mongo_client = MongoClient.instance
-    collection = mongo_client.db("challenge").collection("requested_payments")
-    payment_json = new_payment.to_json
-    collection.insert_one(new_payment.to_bson)
-    pubsub_client.publish(payment_json)
+    pubsub_client.publish(new_payment.to_json)
 
     env.response.status_code = 201
-    payment_json
+    new_payment.to_json
     
   rescue JSON::ParseException
     env.response.status_code = 400
