@@ -14,14 +14,15 @@ services:
       - /sys:/host/sys:ro
       - ./profiling-data:/app/profiling-data
     environment:
-      MONGO_URI: "mongodb://mongo:27017/challenge?w=0&j=false"
       PROCESSOR_URL: "http://payment-processor-default:8080"
       FALLBACK_URL: "http://payment-processor-fallback:8080"
       CIRCUIT_BREAKER_THRESHOLD: "5"
       CIRCUIT_BREAKER_TIMEWINDOW: "15"
       CIRCUIT_BREAKER_REENABLE_AFTER: "5"
-      SKIP_BATCH: "true"
+      DISABLE_LOG: "true"
+      SQLITE_PATH: "/dev/shm/database.sqlite3?sync=off&journal_mode=WAL&busy_timeout=1000"
       AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
+      BATCH_INTERVAL: "5"
     networks:
       - backend
       - payment-processor
@@ -30,9 +31,7 @@ services:
     depends_on:
       lavinmq:
         condition: service_healthy
-      mongo:
-        condition: service_healthy
-
+    ipc: host
     ulimits:
       nproc: 1000000
       nofile:
@@ -41,7 +40,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.1'
+          cpus: '0.15'
           memory: '20MB'
   app2:
     <<: *app
@@ -50,13 +49,28 @@ services:
   consumer:
     <<: *app
     hostname: consumer
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: '15MB'
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+  consumer2:
+    <<: *app
+    hostname: consumer2
     build:
       context: .
       dockerfile: Dockerfile.consumer
 
-  consumer2:
+  consumer3:
     <<: *app
-    hostname: consumer2
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+  consumer4:
+    <<: *app
     build:
       context: .
       dockerfile: Dockerfile.consumer
@@ -80,47 +94,6 @@ services:
         limits:
           cpus: '0.1'
           memory: '35MB'
-
-  # nettools:
-  #   image: alpine:latest
-  #   container_name: nettools
-  #   command: /bin/sh -c "apk add --no-cache curl busybox-extras bind-tools iproute2 && sh"
-  #   tty: true
-  #   stdin_open: true
-  #   networks:
-  #     - backend
-  #     - payment-processor
-  #   depends_on:
-  #     - app1
-  #     - app2
-  #   environment: {}
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '0.05'
-  #         memory: '200MB'
-  #   # You can exec into this container and use curl, ping, traceroute, telnet, dig, etc.
-  #   # Example: docker-compose exec nettools sh
-  #   # Then: curl http://app1:3000
-
-  mongo:
-    image: mongo:8.0
-    container_name: mongo
-    ports:
-      - 27017:27017
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 2s
-    networks:
-      - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: '150MB'
 
   nginx: # Load Balancer
     image: nginx:latest

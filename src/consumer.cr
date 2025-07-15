@@ -1,31 +1,34 @@
 require "./amqp/pubsub-client"
 require "json"
-require "./mongo_client"
 require "./circuit_breaker_wrapper"
 require "./http_client"
 require "./payment_types"
+require "./sqlite_client"
 
 class Consumer
   @circuit_breaker : CircuitBreakerWrapper
-  @processed_payments : Mongo::Collection
-  @successful_batches : Array(BSON)
+  @processed_payments : DB::Database
+  @successful_batches : Array(Hash(String, PaymentProcessorRequest | String))
   @last_insert : Time
   @pubsub_client : PubSubClient
-  @array_mutex : Mutex
+  @atomic_index : Atomic(Int32)
+  @last_insert_offset : Atomic(Int32)
+  @last_insert_time : Atomic(Int64)
 
   def initialize
     amqp_url = ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"
     @pubsub_client = PubSubClient.new(amqp_url)
     process_client = HttpClient.new("default", @pubsub_client, ENV["PROCESSOR_URL"]? || "http://localhost:8001")
     fallback_client = HttpClient.new("fallback", @pubsub_client, ENV["FALLBACK_URL"]? || "http://localhost:8002")
-    @array_mutex = Mutex.new
-    
+    @atomic_index = Atomic(Int32).new(0)
+    @last_insert_offset = Atomic(Int32).new(0)
     @circuit_breaker = CircuitBreakerWrapper.new(process_client, fallback_client)
+    @last_insert_time = Atomic(Int64).new(Time.utc.to_unix_ms)
+
     
-    mongo_client = MongoClient.instance
-    @processed_payments = mongo_client.db("challenge").collection("processed_payments")
+    @processed_payments = SqliteClient.instance.db
     
-    @successful_batches = [] of BSON
+    @successful_batches = [] of Hash(String, PaymentProcessorRequest | String)
     @last_insert = Time.utc
     start_batch_timer
   end
@@ -33,41 +36,66 @@ class Consumer
   def start_batch_timer
     spawn do
       loop do
-        trigger_process
-        sleep 0.125.seconds # 125ms
+        delay = ENV["BATCH_INTERVAL"]? ? ENV["BATCH_INTERVAL"].to_f.milliseconds : 125.milliseconds
+        now = Time.utc.to_unix_ms
+        last_insert = @last_insert_time.get
+        elapsed = now - last_insert
+
+        if elapsed >= delay.to_i
+          trigger_process
+          # After processing, update last_insert_time inside trigger_process
+          sleep 0.01 # short sleep to avoid busy loop
+        else
+          sleep_time = delay.to_i - elapsed
+          sleep sleep_time > 0 ? sleep_time : 0.01
+        end
       end
     end
   end
 
   def add_successful_payment(payment : PaymentProcessorRequest, processor : String)
-    bson_doc = to_bson(payment, processor)
     if ENV["SKIP_BATCH"]?
-      @processed_payments.insert_one(bson_doc)
+      @processed_payments.exec("INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES (?, ?, ?, ?)", payment.correlationId, payment.requestedAt, payment.amount, processor)
     else
-      @successful_batches << bson_doc
+      @atomic_index.add(1, :relaxed)
+      @successful_batches << to_database_entry(payment, processor)
     end
   end
 
-  def to_bson(payment : PaymentProcessorRequest, processor : String)
-    BSON.new({
-      "correlationId" => payment.correlationId,
-      "amount" => payment.amount.to_f,
-      "processor" => processor,
-      "timestamp" => payment.requestedAt
-    })
+  def to_database_entry(payment : PaymentProcessorRequest, processor : String)
+    {
+      "entry" => payment,
+      "processor" => processor
+    }
   end
 
   def trigger_process
     return if @successful_batches.empty?
-    @array_mutex.lock
+    start_offset = @last_insert_offset.get
+    end_offset = @atomic_index.get
+    if start_offset == end_offset
+      return
+    end
+    @last_insert_offset.set(end_offset)
 
-    puts "Starting Insert Batch"
-    to_insert = @successful_batches.dup
-    @successful_batches.clear
-    @last_insert = Time.utc
-    @array_mutex.unlock
+    to_insert : Array(Hash(String, PaymentProcessorRequest | String)) = @successful_batches[start_offset...end_offset].as(Array(Hash(String, PaymentProcessorRequest | String)))
+    last_insert = Time.utc.to_unix_ms
 
-    @processed_payments.insert_many(to_insert)
+    # Batch insert with a single INSERT statement and multiple VALUES
+    unless to_insert.empty?
+      @last_insert_time.set(last_insert)
+      @processed_payments.transaction do |tx|
+        to_insert.each do |entry|
+          @processed_payments.exec(
+            "INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES (?, ?, ?, ?)",
+            entry["entry"].as(PaymentProcessorRequest).correlationId,
+            entry["entry"].as(PaymentProcessorRequest).requestedAt,
+            entry["entry"].as(PaymentProcessorRequest).amount,
+            entry["processor"].to_s
+          )
+        end
+      end
+    end
   end
 
   def run

@@ -5,8 +5,10 @@ authors:
   - Your Name <your.email@example.com>
 
 targets:
-  rinha-2025:
-    main: src/rinha-2025.cr
+  server:
+    main: src/server.cr
+  consumer:
+    main: src/consumer.cr
 
 dependencies:
   kemal:
@@ -18,6 +20,9 @@ dependencies:
   circuit_breaker:
     github: TPei/circuit_breaker
     version: ~> 0.0.6
+  sqlite3:
+    github: crystal-lang/crystal-sqlite3
+    version: ~> 0.21.0
 
 crystal: 1.0.0
 

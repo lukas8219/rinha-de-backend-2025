@@ -10,6 +10,7 @@ class PubSubClient
     @channel = @connection.channel
     @queue_name = "processor:queue"
     @health_exchange = @channel.fanout_exchange()
+    @channel.prefetch(ENV["PREFETCH_COUNT"]? ? ENV["PREFETCH_COUNT"].to_i : 1)
   end
 
   def publish(message : IO)
@@ -22,7 +23,7 @@ class PubSubClient
 
   def subscribe(&block : AMQP::Client::DeliverMessage -> Nil)
     @channel.queue_declare(@queue_name, durable: false)
-    @channel.basic_consume(@queue_name, no_ack: true, work_pool: System.cpu_count) do |delivery|
+    @channel.basic_consume(@queue_name, no_ack: true) do |delivery|
       block.call(delivery)
     end
   end
@@ -30,7 +31,7 @@ class PubSubClient
   def subscribe_health(queue_name : String, &block : AMQP::Client::DeliverMessage -> Nil)
     @channel.queue_declare(queue_name, durable: false)
     @channel.queue_bind(queue_name, @health_exchange.name, queue_name)
-    @channel.basic_consume(queue_name, no_ack: true, work_pool: System.cpu_count) do |delivery|
+    @channel.basic_consume(queue_name, no_ack: true) do |delivery|
       block.call(delivery)
     end
   end

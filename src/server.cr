@@ -1,9 +1,9 @@
 require "kemal"
 require "json"
-require "./mongo_client"
 require "./payment_types"
 require "./circuit_breaker_wrapper"
 require "./amqp/pubsub-client"
+require "./sqlite_client"
 
 pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
 
@@ -12,6 +12,9 @@ circuit_breaker_wrapper = CircuitBreakerWrapper.new(
   ENV["FALLBACK_URL"]?.try(&.presence).nil? ? nil : HttpClient.new("fallback", pubsub_client, ENV["FALLBACK_URL"])
 )
 
+if ENV["DISABLE_LOG"]?
+  logging false
+end
 # Enable CORS
 before_all do |env|
   env.response.headers.add "Access-Control-Allow-Origin", "*"
@@ -21,6 +24,13 @@ end
 
 options "/*" do |env|
   env.response.status_code = 200
+end
+
+post "/admin/purge-database" do |env|
+  env.response.content_type = "application/json"
+  SqliteClient.instance.db.exec("DELETE FROM processed_payments;")
+  env.response.status_code = 200
+  {"message" => "Database purged"}.to_json
 end
 
 get "/payments-summary" do |env|
@@ -44,36 +54,33 @@ get "/payments-summary" do |env|
       next({"error" => "Invalid 'from' or 'to' timestamp format. Use ISO8601."}.to_json)
     end
 
-    mongo_client = MongoClient.instance
-    collection = mongo_client.db("challenge").collection("processed_payments")
+    sqlite_client = SqliteClient.instance
+    db = sqlite_client.db
 
     # Build the match stage for the pipeline with both from and to
-    match_stage = {
-      "timestamp" => { "$gte" => from_time, "$lte" => to_time }
-    }
-
-    pipeline = [
-      BSON.new({ "$match" => match_stage }),
-      BSON.new({
-        "$group" => {
-          "_id" => "$processor",
-          "totalRequests" => { "$sum" => 1 },
-          "totalAmount" => { "$sum" => "$amount" }
-        }
-      })
-    ]
-
-    result = collection.aggregate(pipeline)
     summary = {
       "default" => { "totalRequests" => 0, "totalAmount" => 0.0 },
       "fallback" => { "totalRequests" => 0, "totalAmount" => 0.0 }
     }
-    result.not_nil!.each do |doc|
-      processor = doc["_id"].to_s
-      summary[processor] = {
-        "totalRequests" => doc["totalRequests"].as(Int32).to_i,
-        "totalAmount" => doc["totalAmount"].as(Float64).to_f
-      }
+
+    sql = <<-SQL
+      SELECT processor, COUNT(*) AS totalRequests, COALESCE(SUM(amount), 0) AS totalAmount
+      FROM processed_payments
+      WHERE timestamp >= ? AND timestamp <= ?
+      GROUP BY processor
+    SQL
+
+    db.query(sql, from_time, to_time) do |rs|
+      rs.each do
+        processor = rs.read(String)
+        total_requests = rs.read(Int64)
+        total_amount = rs.read(Float64)
+        puts "processor: #{processor}, total_requests: #{total_requests}, total_amount: #{total_amount}"
+        summary[processor] = {
+          "totalRequests" => total_requests.to_i,
+          "totalAmount" => total_amount.to_f
+        }
+      end
     end
     summary.to_json
   rescue ex

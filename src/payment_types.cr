@@ -19,9 +19,10 @@ struct Payment
 
   property correlationId : String
   property amount : Float64
-  property requestedAt : Time?
+  property requestedAt : String?
 
-  def initialize(@correlationId : String, @amount : Float64, @requestedAt : Time?)
+  def initialize(@correlationId : String, @amount : Float64, requestedAt : Time?)
+    @requestedAt = requestedAt.try(&.utc.to_s("%Y-%m-%dT%H:%M:%SZ"))
   end
 
   def to_bson
