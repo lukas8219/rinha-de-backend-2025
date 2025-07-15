@@ -9,7 +9,6 @@ class Consumer
   @circuit_breaker : CircuitBreakerWrapper
   @processed_payments : DB::Database
   @successful_batches : Array(Hash(String, PaymentProcessorRequest | String))
-  @last_insert : Time
   @pubsub_client : PubSubClient
   @atomic_index : Atomic(Int32)
   @last_insert_offset : Atomic(Int32)
@@ -29,26 +28,34 @@ class Consumer
     @processed_payments = SqliteClient.instance.db
     
     @successful_batches = [] of Hash(String, PaymentProcessorRequest | String)
-    @last_insert = Time.utc
     start_batch_timer
   end
 
   def start_batch_timer
-    spawn do
-      loop do
-        delay = ENV["BATCH_INTERVAL"]? ? ENV["BATCH_INTERVAL"].to_f.milliseconds : 125.milliseconds
-        now = Time.utc.to_unix_ms
-        last_insert = @last_insert_time.get
-        elapsed = now - last_insert
+    10.times do
+      spawn exec_batch
+    end
+  end
 
-        if elapsed >= delay.to_i
-          trigger_process
-          # After processing, update last_insert_time inside trigger_process
-          sleep 0.01 # short sleep to avoid busy loop
-        else
-          sleep_time = delay.to_i - elapsed
-          sleep sleep_time > 0 ? sleep_time : 0.01
-        end
+  def exec_batch
+    loop do
+      if ENV["SKIP_DELAY"]?
+        trigger_process
+        sleep 1.nanoseconds
+        next
+      end
+      delay = ENV["BATCH_INTERVAL"]? ? ENV["BATCH_INTERVAL"].to_f.milliseconds : 125.milliseconds
+      now = Time.utc.to_unix_ms
+      last_insert = @last_insert_time.get
+      elapsed = now - last_insert
+
+      if elapsed >= delay.to_i
+        trigger_process
+        # After processing, update last_insert_time inside trigger_process
+        sleep 0.01.nanoseconds # short sleep to avoid busy loop
+      else
+        sleep_time = delay.to_i - elapsed
+        sleep sleep_time > 0 ? sleep_time.nanoseconds : 0.01.nanoseconds
       end
     end
   end
@@ -76,14 +83,15 @@ class Consumer
     if start_offset == end_offset
       return
     end
-    @last_insert_offset.set(end_offset)
+    @last_insert_offset.max(end_offset)
 
     to_insert : Array(Hash(String, PaymentProcessorRequest | String)) = @successful_batches[start_offset...end_offset].as(Array(Hash(String, PaymentProcessorRequest | String)))
     last_insert = Time.utc.to_unix_ms
 
     # Batch insert with a single INSERT statement and multiple VALUES
+    
     unless to_insert.empty?
-      @last_insert_time.set(last_insert)
+      @last_insert_time.max(last_insert)
       @processed_payments.transaction do |tx|
         to_insert.each do |entry|
           @processed_payments.exec(
@@ -109,7 +117,7 @@ class Consumer
           add_successful_payment(request, response["processor"].to_s)
         end
       rescue ex
-        puts "Error processing message: #{ex.message}"
+          puts "Error processing message: #{ex.message}"
       end
     end
   end

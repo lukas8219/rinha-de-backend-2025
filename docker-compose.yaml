@@ -5,6 +5,7 @@ services:
     build: .
     hostname: app1
     privileged: true
+    restart: unless-stopped
     cap_add:
       - SYS_ADMIN
       - SYS_PTRACE
@@ -16,13 +17,13 @@ services:
     environment:
       PROCESSOR_URL: "http://payment-processor-default:8080"
       FALLBACK_URL: "http://payment-processor-fallback:8080"
-      CIRCUIT_BREAKER_THRESHOLD: "5"
-      CIRCUIT_BREAKER_TIMEWINDOW: "15"
-      CIRCUIT_BREAKER_REENABLE_AFTER: "5"
       DISABLE_LOG: "true"
       SQLITE_PATH: "/dev/shm/database.sqlite3?sync=off&journal_mode=WAL&busy_timeout=1000"
       AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
       BATCH_INTERVAL: "5"
+      SKIP_DELAY: "true"
+      PREFETCH_COUNT: "0"
+      SHARD_COUNT: "4"
     networks:
       - backend
       - payment-processor
@@ -46,34 +47,26 @@ services:
     <<: *app
     hostname: app2
 
-  consumer:
+  consumer: &consumer
     <<: *app
-    hostname: consumer
+    hostname: "1"
     deploy:
       resources:
         limits:
           cpus: '0.25'
-          memory: '15MB'
+          memory: '25MB'
     build:
       context: .
       dockerfile: Dockerfile.consumer
   consumer2:
-    <<: *app
-    hostname: consumer2
-    build:
-      context: .
-      dockerfile: Dockerfile.consumer
-
+    <<: *consumer
+    hostname: "2"
   consumer3:
-    <<: *app
-    build:
-      context: .
-      dockerfile: Dockerfile.consumer
+    <<: *consumer
+    hostname: "3"
   consumer4:
-    <<: *app
-    build:
-      context: .
-      dockerfile: Dockerfile.consumer
+    <<: *consumer
+    hostname: "4"
 
   lavinmq:
     image: cloudamqp/lavinmq:latest
