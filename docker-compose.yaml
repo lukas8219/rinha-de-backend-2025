@@ -20,6 +20,7 @@ services:
       CIRCUIT_BREAKER_THRESHOLD: "5"
       CIRCUIT_BREAKER_TIMEWINDOW: "15"
       CIRCUIT_BREAKER_REENABLE_AFTER: "5"
+      SKIP_BATCH: "true"
       AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
     networks:
       - backend
