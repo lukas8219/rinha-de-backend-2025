@@ -16,6 +16,10 @@ shards:
     git: https://github.com/elbywan/cryomongo.git
     version: 0.3.12
 
+  db:
+    git: https://github.com/crystal-lang/crystal-db.git
+    version: 0.13.1
+
   dns:
     git: https://github.com/spider-gazelle/dns.git
     version: 1.0.1+git.commit.f8f93b51799f35cedd8b88eb03efec864a8515e4
@@ -31,4 +35,8 @@ shards:
   radix:
     git: https://github.com/luislavena/radix.git
     version: 0.4.1
+
+  sqlite3:
+    git: https://github.com/crystal-lang/crystal-sqlite3.git
+    version: 0.21.0
 
