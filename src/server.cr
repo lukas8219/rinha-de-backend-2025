@@ -70,12 +70,11 @@ get "/payments-summary" do |env|
       GROUP BY processor
     SQL
 
-    db.query(sql, from_time, to_time) do |rs|
+    db.query(sql, from_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ"), to_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ")) do |rs|
       rs.each do
         processor = rs.read(String)
         total_requests = rs.read(Int64)
         total_amount = rs.read(Float64)
-        puts "processor: #{processor}, total_requests: #{total_requests}, total_amount: #{total_amount}"
         summary[processor] = {
           "totalRequests" => total_requests.to_i,
           "totalAmount" => total_amount.to_f
@@ -101,9 +100,11 @@ post "/payments" do |env|
     {% end %}
     pubsub_client.publish(env.request.body.not_nil!)
     env.response.status_code = 201    
-  rescue JSON::ParseException
+  rescue ex : JSON::ParseException
+    puts "Error parsing JSON: #{ex.message}"
     env.response.status_code = 400
   rescue ex
+    puts "Error processing payment: #{ex.message}"
     env.response.status_code = 500
   end
 end

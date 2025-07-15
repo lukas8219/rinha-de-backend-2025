@@ -11,25 +11,9 @@ struct PaymentProcessorRequest
   include JSON::Serializable
   property correlationId : String
   property amount : Float64
-  property requestedAt : Time?
-end
-
-struct Payment
-  include JSON::Serializable
-
-  property correlationId : String
-  property amount : Float64
   property requestedAt : String?
 
-  def initialize(@correlationId : String, @amount : Float64, requestedAt : Time?)
-    @requestedAt = requestedAt.try(&.utc.to_s("%Y-%m-%dT%H:%M:%SZ"))
+  def initialize(@correlationId : String, @amount : Float64, @requestedAt : String?)
+    @requestedAt = requestedAt.try(&.utc.to_s("%Y-%m-%dT%H:%M:%S.%LZ"))
   end
-
-  def to_bson
-    {
-      "correlationId" => @correlationId,
-      "amount" => @amount,
-      "requestedAt" => @requestedAt
-    }
-  end
-end 
+end
