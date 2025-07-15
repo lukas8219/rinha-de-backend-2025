@@ -1,0 +1,51 @@
+name: k6 Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  k6-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Build and start services
+        run: docker-compose up -d --build
+
+      - name: Wait for services to be healthy
+        run: |
+          # Wait for nginx to be up (adjust port if needed)
+          for i in {1..60}; do
+            if curl -s http://localhost:9999/ > /dev/null; then
+              echo "nginx is up!"
+              break
+            fi
+            echo "Waiting for nginx..."
+            sleep 2
+          done
+
+      - name: Download k6 test script
+        run: |
+          curl -L https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/rinha-test/rinha.js -o rinha.js
+
+      - name: Install k6
+        run: |
+          curl -s https://packagecloud.io/install/repositories/loadimpact/k6/script.deb.sh | sudo bash
+          sudo apt-get install -y k6
+
+      - name: Run k6 test
+        run: k6 run --out json=results.json rinha.js
+
+      - name: Tear down services
+        if: always()
+        run: docker-compose down -v
