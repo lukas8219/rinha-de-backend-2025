@@ -12,6 +12,7 @@ class MongoClient
   def initialize
     mongo_uri = ENV["MONGO_URI"]? || "mongodb://localhost:27017"
     @client = Mongo::Client.new(mongo_uri)
+    @client["challenge"].collection("processed_payments").create_index({"timestamp" => 1})
   end
 
   def db(name : String)
