@@ -97,7 +97,7 @@ class Consumer
           @processed_payments.exec(
             "INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES (?, ?, ?, ?)",
             entry["entry"].as(PaymentProcessorRequest).correlationId,
-            entry["entry"].as(PaymentProcessorRequest).requestedAt,
+            entry["entry"].as(PaymentProcessorRequest).requestedAt.not_nil!,
             entry["entry"].as(PaymentProcessorRequest).amount,
             entry["processor"].to_s
           )
@@ -111,7 +111,7 @@ class Consumer
     @pubsub_client.subscribe do |delivery|
       begin
         request = PaymentProcessorRequest.from_json(delivery.body_io.to_s)
-        request.requestedAt = Time.utc
+        request.requestedAt = Time.utc.to_s("%Y-%m-%dT%H:%M:%S.%LZ")
         response = @circuit_breaker.send_payment(request, ENV["TOKEN"]?)
         if response
           add_successful_payment(request, response["processor"].to_s)

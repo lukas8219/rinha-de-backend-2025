@@ -14,11 +14,12 @@ class PubSubClient
     @health_exchange = @channel.fanout_exchange()
     @worker_exchange = @channel.exchange("worker", "x-consistent-hash")
     @channel.prefetch(ENV["PREFETCH_COUNT"]? ? ENV["PREFETCH_COUNT"].to_i : 1)
-    @current_shard_index = Atomic(Int32).new(0)
+    @current_shard_index = Atomic(Int32).new(1)
   end
 
   def publish(message : IO)
-    @worker_exchange.publish(message.getb_to_end, "#{@current_shard_index.add(1, :relaxed) % ENV["SHARD_COUNT"]?.not_nil!.to_i}")
+    shard_key = "#{(@current_shard_index.add(1, :relaxed) % 1) + 1}"
+    @worker_exchange.publish(message.getb_to_end, shard_key)
   end
   
   def publish_health(queue_name : String, message : IO)
