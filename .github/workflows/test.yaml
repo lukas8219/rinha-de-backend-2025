@@ -13,11 +13,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+      
 
-      - name: Set up Docker Compose
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
+      - name: Download Environment
+        run: |  
+          curl -l https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/payment-processor/docker-compose.yml -o docker-compose-payment-processor.yml
+          curl -l https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/rinha-test/rinha.js -o rinha.js
+          curl -l https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/payment-processor/init.sql -o init.sql
+
+      - name: Build and start services
+        run: docker-compose -f docker-compose-payment-processor.yml up -d
+
+      - name: Wait for services to be healthy
+        run: sleep 5
 
       - name: Build and start services
         run: docker-compose up -d --build
@@ -33,10 +43,6 @@ jobs:
             echo "Waiting for nginx..."
             sleep 2
           done
-
-      - name: Download k6 test script
-        run: |
-          curl -L https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/rinha-test/rinha.js -o rinha.js
 
       - name: Install k6
         run: |
