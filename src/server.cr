@@ -86,33 +86,18 @@ post "/payments" do |env|
   env.response.content_type = "application/json"
   
   begin
-    if ENV["USE_CIRCUIT_BREAKER"]?
-      #TODO stop parsing the body and use the circuit breaker wrapper directly
+    {% if flag?(:skip_circuit_breaker) %}
       response = circuit_breaker_wrapper.send_payment(env.request.body.not_nil!, nil)
       env.response.status_code = response["response"].as(HTTP::Client::Response).status_code
       next response["response"].as(HTTP::Client::Response).body
       return
-    end
-
-    payment_data = PaymentRequest.from_json(env.request.body.not_nil!)
-    
-    new_payment = Payment.new(
-      correlationId: payment_data.correlationId.not_nil!,
-      amount: payment_data.amount.not_nil!,
-      requestedAt: Time.utc
-    )
-
-    pubsub_client.publish(new_payment.to_json)
-
-    env.response.status_code = 201
-    new_payment.to_json
-    
+    {% end %}
+    pubsub_client.publish(env.request.body.not_nil!)
+    env.response.status_code = 201    
   rescue JSON::ParseException
     env.response.status_code = 400
-    {"error" => "Invalid JSON"}.to_json
   rescue ex
     env.response.status_code = 500
-    {"error" => "Unexpected Error", "message" => ex.message}.to_json
   end
 end
 

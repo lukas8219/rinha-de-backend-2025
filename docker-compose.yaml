@@ -4,7 +4,6 @@ services:
     # image: lukas8219/rinha-be-2023-q3:latest
     build: .
     hostname: app1
-    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-app1.data", "./server"]
     privileged: true
     cap_add:
       - SYS_ADMIN
@@ -45,13 +44,11 @@ services:
           memory: '20MB'
   app2:
     <<: *app
-    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-app2.data", "./server"]
     hostname: app2
 
   consumer:
     <<: *app
     hostname: consumer
-    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-consumer.data", "./consumer"]
     build:
       context: .
       dockerfile: Dockerfile.consumer
@@ -59,7 +56,6 @@ services:
   consumer2:
     <<: *app
     hostname: consumer2
-    command: ["perf", "record", "-g", "-F", "99", "-o", "/app/profiling-data/perf-consumer2.data", "./consumer"]
     build:
       context: .
       dockerfile: Dockerfile.consumer

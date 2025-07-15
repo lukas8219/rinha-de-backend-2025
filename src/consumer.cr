@@ -69,8 +69,10 @@ class Consumer
     puts "Listening for messages on AMQP queue: #{@pubsub_client.@queue_name}"
     @pubsub_client.subscribe do |delivery|
       begin
-        response = @circuit_breaker.send_payment(delivery.body_io, ENV["TOKEN"]?)
-        add_successful_payment(PaymentProcessorRequest.from_json(delivery.body_io.to_s), response["processor"].to_s)
+        request = PaymentProcessorRequest.from_json(delivery.body_io.to_s)
+        request.requestedAt = Time.utc
+        response = @circuit_breaker.send_payment(request, ENV["TOKEN"]?)
+        add_successful_payment(request, response["processor"].to_s)
       rescue ex
         puts "Error processing message: #{ex.message}"
       end

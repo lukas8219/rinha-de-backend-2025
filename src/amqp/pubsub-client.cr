@@ -11,8 +11,8 @@ class PubSubClient
     @channel.queue_declare(@queue_name, durable: false)
   end
 
-  def publish(message : String)
-    @channel.basic_publish(message, "", @queue_name)
+  def publish(message : IO)
+    @channel.basic_publish(message.getb_to_end, "", @queue_name)
   end
 
   def subscribe(&block : AMQP::Client::DeliverMessage -> Nil)

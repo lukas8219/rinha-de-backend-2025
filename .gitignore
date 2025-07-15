@@ -3,6 +3,7 @@
 /lib/
 /.shards/
 *.dwarf
+profiling-data/
 
 # Environment
 .env

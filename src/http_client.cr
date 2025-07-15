@@ -9,7 +9,7 @@ class HttpClient
   end
 
   # Accepts a buffer of data (String or IO) instead of a Payment object
-  def send_payment(data, token : String?)
+  def send_payment(data : PaymentProcessorRequest, token : String?)
     url = "#{@base_url.not_nil!}/payments"
     
     headers = HTTP::Headers.new
@@ -18,6 +18,6 @@ class HttpClient
     if token
       headers["Authorization"] = "Bearer #{token}"
     end
-    HTTP::Client.post(url, headers: headers, body: data)
+    HTTP::Client.post(url, headers: headers, body: data.to_json)
   end
 end 

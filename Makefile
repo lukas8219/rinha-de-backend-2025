@@ -29,3 +29,7 @@ dev-server: lib
 
 dev-consumer: lib
 	$(CRYSTAL_BIN) run src/consumer.cr 
+
+download-perf-tooling:
+	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/flamegraph.pl -O profiling-data/flamegraph.pl
+	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/stackcollapse-perf.pl -O profiling-data/stackcollapse-perf.pl

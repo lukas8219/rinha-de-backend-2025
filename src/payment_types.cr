@@ -11,7 +11,7 @@ struct PaymentProcessorRequest
   include JSON::Serializable
   property correlationId : String
   property amount : Float64
-  property requestedAt : Time
+  property requestedAt : Time?
 end
 
 struct Payment
