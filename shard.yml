@@ -23,6 +23,9 @@ dependencies:
   sqlite3:
     github: crystal-lang/crystal-sqlite3
     version: ~> 0.21.0
+  amqp-client:
+    github: crystal-lang/crystal-amqp
+    version: ~> 0.1.0
 
 crystal: 1.0.0
 
