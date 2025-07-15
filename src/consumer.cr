@@ -13,8 +13,10 @@ class Consumer
   @pubsub_client : PubSubClient
 
   def initialize
-    process_client = HttpClient.new(ENV["PROCESSOR_URL"]?.not_nil!)
-    fallback_client = HttpClient.new(ENV["FALLBACK_URL"]?.not_nil!)
+    amqp_url = ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"
+    @pubsub_client = PubSubClient.new(amqp_url)
+    process_client = HttpClient.new("default", @pubsub_client, ENV["PROCESSOR_URL"]? || "http://localhost:8001")
+    fallback_client = HttpClient.new("fallback", @pubsub_client, ENV["FALLBACK_URL"]? || "http://localhost:8002")
     
     @circuit_breaker = CircuitBreakerWrapper.new(process_client, fallback_client)
     
@@ -23,18 +25,14 @@ class Consumer
     
     @successful_batches = [] of Hash(String, PaymentProcessorRequest | String)
     @last_insert = Time.utc
-
-    amqp_url = ENV["AMQP_URL"]?.not_nil! # PubSubClient expects a string
-    @pubsub_client = PubSubClient.new(amqp_url)
-    
     start_batch_timer
   end
 
   def start_batch_timer
     spawn do
       loop do
-        sleep 0.125.seconds # 125ms
         trigger_process
+        sleep 0.125.seconds # 125ms
       end
     end
   end
@@ -72,7 +70,9 @@ class Consumer
         request = PaymentProcessorRequest.from_json(delivery.body_io.to_s)
         request.requestedAt = Time.utc
         response = @circuit_breaker.send_payment(request, ENV["TOKEN"]?)
-        add_successful_payment(request, response["processor"].to_s)
+        if response
+          add_successful_payment(request, response["processor"].to_s)
+        end
       rescue ex
         puts "Error processing message: #{ex.message}"
       end

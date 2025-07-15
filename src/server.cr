@@ -5,12 +5,12 @@ require "./payment_types"
 require "./circuit_breaker_wrapper"
 require "./amqp/pubsub-client"
 
-circuit_breaker_wrapper = CircuitBreakerWrapper.new(
-  ENV["PROCESSOR_URL"]?.try(&.presence).nil? ? nil : HttpClient.new(ENV["PROCESSOR_URL"]),
-  ENV["FALLBACK_URL"]?.try(&.presence).nil? ? nil : HttpClient.new(ENV["FALLBACK_URL"])
-)
+pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
 
-pubsub_client = PubSubClient.new(ENV["AMQP_URL"]?.not_nil!)
+circuit_breaker_wrapper = CircuitBreakerWrapper.new(
+  ENV["PROCESSOR_URL"]?.try(&.presence).nil? ? nil : HttpClient.new("default", pubsub_client, ENV["PROCESSOR_URL"]),
+  ENV["FALLBACK_URL"]?.try(&.presence).nil? ? nil : HttpClient.new("fallback", pubsub_client, ENV["FALLBACK_URL"])
+)
 
 # Enable CORS
 before_all do |env|
