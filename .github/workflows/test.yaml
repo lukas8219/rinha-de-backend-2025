@@ -56,9 +56,9 @@ jobs:
         run: |
           echo "## k6 Test Results" > comment.md
           echo "Hash: ${{ github.sha }}" >> comment.md
-          echo "```json" >> comment.md
+          echo "\`\`\`json" >> comment.md
           cat partial-results.json >> comment.md
-          echo "```" >> comment.md
+          echo "\`\`\`" >> comment.md
 
       - name: Comment PR with partial-results.json
         if: github.event_name == 'pull_request'
