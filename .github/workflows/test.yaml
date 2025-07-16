@@ -52,12 +52,19 @@ jobs:
 
       - name: Run k6 test
         run: k6 -q run rinha.js
+      - name: Create Comment MD File
+        run: |
+          echo "## k6 Test Results" > comment.md
+          echo "Hash: ${{ github.sha }}" >> comment.md
+          echo "```json" >> comment.md
+          cat partial-results.json >> comment.md
+          echo "```" >> comment.md
 
       - name: Comment PR with partial-results.json
         if: github.event_name == 'pull_request'
         uses: mshick/add-pr-comment@v2
         with:
-          message-path: partial-results.json
+          message-path: comment.md
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Tear down services
