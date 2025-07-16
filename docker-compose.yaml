@@ -25,6 +25,7 @@ services:
       BATCH_INTERVAL: "50"
       PREFETCH_COUNT: "0"
       SHARD_COUNT: "4"
+      SKIP_DELAY: "true"
     networks:
       - backend
       - payment-processor
@@ -43,7 +44,7 @@ services:
       resources:
         limits:
           cpus: '0.1'
-          memory: '20MB'
+          memory: '35MB'
   app2:
     <<: *app
     hostname: app2
@@ -58,7 +59,7 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: '35MB'
+          memory: '45MB'
     build:
       context: .
       target: worker
