@@ -58,7 +58,7 @@ jobs:
           echo "Hash: ${{ github.sha }}" >> comment.md
           echo "\`\`\`json" >> comment.md
           cat partial-results.json >> comment.md
-          echo "\`\`\`" >> comment.md
+          echo "\n\`\`\`" >> comment.md
 
       - name: Comment PR with partial-results.json
         if: github.event_name == 'pull_request'
@@ -66,6 +66,7 @@ jobs:
         with:
           message-path: comment.md
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+          allow-repeats: true
 
       - name: Tear down services
         if: always()
