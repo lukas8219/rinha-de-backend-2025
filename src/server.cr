@@ -42,8 +42,8 @@ get "/payments-summary" do |env|
     to_param = env.params.query["to"]?
 
     unless from_param && to_param
-      env.response.status_code = 400
-      next({"error" => "'from' and 'to' query parameters are required in ISO8601 format"}.to_json)
+      from_param = "1970-01-01T00:00:00Z"
+      to_param = "3000-01-01T00:00:00Z"
     end
 
     begin
