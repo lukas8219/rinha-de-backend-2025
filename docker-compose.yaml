@@ -2,7 +2,9 @@ version: '3.4'
 services:
   app1: &app
     # image: lukas8219/rinha-be-2023-q3:latest
-    build: .
+    build:
+      context: .
+      target: app
     hostname: app1
     privileged: true
     restart: unless-stopped
@@ -57,7 +59,7 @@ services:
           memory: '25MB'
     build:
       context: .
-      dockerfile: Dockerfile.consumer
+      target: worker
   consumer2:
     <<: *consumer
     hostname: "2"

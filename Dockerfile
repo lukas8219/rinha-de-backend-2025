@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y liblz4-dev dpkg-dev
 WORKDIR /app
 COPY shard.yml shard.lock ./
 RUN shards install --production
-RUN apt-get update && apt-get install -y libgcc-s1 libstdc++6 net-tools && apt install -y sqlite3 libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libgcc-s1 libstdc++6 && apt install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
 
 # Copy the rest of the application code
 COPY . .
@@ -11,9 +11,28 @@ COPY . .
 # Create bin directory and build the application
 RUN mkdir -p bin
 RUN crystal build --release -o bin/server src/server.cr
+RUN crystal build --release -o bin/consumer src/consumer.cr
 
-# Final image - use ubuntu for compatibility with the built binary
-FROM ubuntu:24.04
+# Debug image
+FROM ubuntu:24.04 AS base
+RUN apt-get update
+RUN apt install -y libsqlite3-dev
+
+# App image
+FROM base AS app
+COPY --from=builder /app/bin/server ./server
+EXPOSE 3000
+CMD [ "./server" ]
+
+# Worker image
+FROM base AS worker
+COPY --from=builder /app/bin/consumer ./consumer
+EXPOSE 3000
+CMD [ "./consumer" ]
+
+
+# Debug with perf
+FROM ubuntu:24.04 AS debug
 
 WORKDIR /app
 ENV LINUX_VERSION=6.14.9
