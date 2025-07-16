@@ -32,7 +32,8 @@ class Consumer
   end
 
   def start_batch_timer
-    (System.cpu_count/2).to_i.times do
+    puts "Starting 10 runners out of #{System.cpu_count} CPU"
+    10.times do
       spawn exec_batch
     end
   end
