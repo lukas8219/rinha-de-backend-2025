@@ -32,7 +32,7 @@ class Consumer
   end
 
   def start_batch_timer
-    System.cpu_count.times do
+    (System.cpu_count/2).to_i.times do
       spawn exec_batch
     end
   end

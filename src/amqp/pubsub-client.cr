@@ -18,7 +18,7 @@ class PubSubClient
   end
 
   def publish(message : IO)
-    shard_key = "#{(@current_shard_index.add(1, :relaxed) % 1) + 1}"
+    shard_key = "#{(@current_shard_index.add(1, :relaxed))}"
     @worker_exchange.publish(message.getb_to_end, shard_key)
   end
   
