@@ -46,13 +46,17 @@ jobs:
             sleep 2
           done
 
-      - name: Install k6
-        run: |
-          curl -s https://packagecloud.io/install/repositories/loadimpact/k6/script.deb.sh | sudo bash
-          sudo apt-get install -y k6
-
+      - uses: grafana/setup-k6-action@v1
+  
       - name: Run k6 test
-        run: k6 run --out json=results.json rinha.js
+        run: k6 run rinha.js
+
+      - name: Comment PR with partial-results.json
+        if: github.event_name == 'pull_request'
+        uses: mshick/add-pr-comment@v2
+        with:
+          file: partial-results.json
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Tear down services
         if: always()
