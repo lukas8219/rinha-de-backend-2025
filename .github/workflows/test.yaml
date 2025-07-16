@@ -23,6 +23,7 @@ jobs:
         run: |  
           curl -l https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/payment-processor/docker-compose.yml -o docker-compose-payment-processor.yml
           curl -l https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/rinha-test/rinha.js -o rinha.js
+          curl -l https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/rinha-test/request.js -o request.js
           curl -l https://raw.githubusercontent.com/zanfranceschi/rinha-de-backend-2025/refs/heads/main/payment-processor/init.sql -o init.sql
 
       - name: Build and start services
@@ -47,7 +48,7 @@ jobs:
           done
 
       - uses: grafana/setup-k6-action@v1
-  
+
       - name: Run k6 test
         run: k6 run rinha.js
 
