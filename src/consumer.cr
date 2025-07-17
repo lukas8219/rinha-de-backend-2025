@@ -99,7 +99,7 @@ class Consumer
             "INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES (?, ?, ?, ?)",
             entry["entry"].as(PaymentProcessorRequest).correlationId,
             entry["entry"].as(PaymentProcessorRequest).requestedAt.not_nil!,
-            entry["entry"].as(PaymentProcessorRequest).amount,
+            (entry["entry"].as(PaymentProcessorRequest).amount * 100).round.to_i64,
             entry["processor"].to_s
           )
         end
