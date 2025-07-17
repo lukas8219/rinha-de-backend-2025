@@ -22,6 +22,15 @@ class CircuitBreakerWrapper
     clients = get_best_suited_client_and_fallback()
     clients.each do |client|
       response = client.send_payment(data, token)
+      if !response.success?
+        response = client.send_payment(data, token)
+      end
+      if !response.success?
+        response = client.send_payment(data, token)
+      end
+      if !response.success?
+        response = client.send_payment(data, token)
+      end
       if response.success?
         return {
           "processor" => client.name,

@@ -17,8 +17,8 @@ class Consumer
   def initialize
     amqp_url = ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"
     @pubsub_client = PubSubClient.new(amqp_url)
-    process_client = HttpClient.new("default", @pubsub_client, ENV["PROCESSOR_URL"]? || "http://localhost:8001")
-    fallback_client = HttpClient.new("fallback", @pubsub_client, ENV["FALLBACK_URL"]? || "http://localhost:8002")
+    process_client = HttpClient.new("default", @pubsub_client, ENV["PROCESSOR_URL"]? || "http://localhost:8001", 2000)
+    fallback_client = HttpClient.new("fallback", @pubsub_client, ENV["FALLBACK_URL"]? || "http://localhost:8002", 5000)
     @atomic_index = Atomic(Int32).new(0)
     @last_insert_offset = Atomic(Int32).new(0)
     @circuit_breaker = CircuitBreakerWrapper.new(process_client, fallback_client)
