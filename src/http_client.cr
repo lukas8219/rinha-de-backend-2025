@@ -15,7 +15,6 @@ end
 class HttpClient
   @base_url : String?
   @stats_client : HTTP::Client
-  @main_client_pool : DB::Pool(HTTP::Client)
   property name : String
   property current_stats : HttpClientStats?
   property timeout : Int32
@@ -32,15 +31,6 @@ class HttpClient
       @current_stats = HttpClientStats.from_json(delivery.body_io.to_s)
       # Worth parsing it and checking the `latency` metric. Give it some marging and set as timeout?
     end
-    @main_client_pool = DB::Pool.new(
-      initial_pool_size: 10,
-      checkout_timeout: timeout.seconds.to_f + 1.seconds.to_f) {
-      client = HTTP::Client.new(uri: base_uri)
-      client.read_timeout = timeout.milliseconds
-      client.connect_timeout = timeout.milliseconds
-      client.write_timeout = timeout.milliseconds
-      client.as(HTTP::Client)
-    }
   end
 
   def update_health_loop()
@@ -59,7 +49,7 @@ class HttpClient
 
   # Accepts a buffer of data (String or IO) instead of a Payment object
   def send_payment(data : PaymentProcessorRequest, token : String?)
-    url = "#{@base_url.not_nil!}/payments"
+    url = "/payments"
     
     headers = HTTP::Headers.new
     headers["Content-Type"] = "application/json"
@@ -67,9 +57,8 @@ class HttpClient
     if token
       headers["Authorization"] = "Bearer #{token}"
     end
-    @main_client_pool.checkout do |client|
-      client.post(url, headers: headers, body: data.to_json)
-    end
+    client = HTTP::Client.new(uri: URI.parse(@base_url.not_nil!))
+    client.post(url, headers: headers, body: data.to_json)
   end
 
   def update_health()

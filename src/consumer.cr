@@ -114,8 +114,9 @@ class Consumer
         request = PaymentProcessorRequest.from_json(delivery.body_io.to_s)
         request.requestedAt = Time.utc.to_s("%Y-%m-%dT%H:%M:%S.%LZ")
         response = @circuit_breaker.send_payment(request, ENV["TOKEN"]?)
-        if response
-          add_successful_payment(request, response["processor"].to_s)
+        add_successful_payment(request, response["processor"].to_s) if response
+        if response.nil?
+          @pubsub_client.publish(delivery.body_io)
         end
       rescue ex
           puts "Error processing message: #{ex.message}"
