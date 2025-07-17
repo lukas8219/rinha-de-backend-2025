@@ -41,14 +41,6 @@ get "/payments-summary" do |env|
       to_param = "3000-01-01T00:00:00Z"
     end
 
-    begin
-      from_time = Time.parse_iso8601(from_param)
-      to_time = Time.parse_iso8601(to_param)
-    rescue ex
-      env.response.status_code = 400
-      next({"error" => "Invalid 'from' or 'to' timestamp format. Use ISO8601."}.to_json)
-    end
-
     sqlite_client = SqliteClient.instance
     db = sqlite_client.db
 
@@ -65,11 +57,11 @@ get "/payments-summary" do |env|
       GROUP BY processor
     SQL
 
-    db.query(sql, from_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ"), to_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ")) do |rs|
+    db.query(sql, from_param, to_param) do |rs|
       rs.each do
         processor = rs.read(String)
         total_requests = rs.read(Int32)
-        total_amount = rs.read(Int64)
+        total_amount = rs.read(Int32)
         summary[processor]["totalRequests"] += total_requests
         summary[processor]["totalAmount"] += total_amount
       end
