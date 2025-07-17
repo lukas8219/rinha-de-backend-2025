@@ -1,6 +1,8 @@
 # TODO
 - [ ] Stop sending too much info via PubSub (might kill pubsub at all)
 -- [ ] Send uuid + amount as sequence of bytes
+- [X] Add Retry
+- [ ] Make a performant BigDecimal implementation
 - [X] Have shared state circuit breaker
 - [ ] Lessen the memory pressure by
 -- [ ] Analyze all spots that may need fine granular control of memory using LibC
