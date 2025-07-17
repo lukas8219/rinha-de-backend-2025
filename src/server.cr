@@ -4,6 +4,7 @@ require "./payment_types"
 require "./circuit_breaker_wrapper"
 require "./amqp/pubsub-client"
 require "./sqlite_client"
+require "big"
 
 pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
 
@@ -59,8 +60,8 @@ get "/payments-summary" do |env|
 
     # Build the match stage for the pipeline with both from and to
     summary = {
-      "default" => { "totalRequests" => 0, "totalAmount" => 0.0 },
-      "fallback" => { "totalRequests" => 0, "totalAmount" => 0.0 }
+      "default" => { "totalRequests" => 0, "totalAmount" => 0 },
+      "fallback" => { "totalRequests" => 0, "totalAmount" => 0 }
     }
 
     sql = <<-SQL
@@ -73,18 +74,25 @@ get "/payments-summary" do |env|
     db.query(sql, from_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ"), to_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ")) do |rs|
       rs.each do
         processor = rs.read(String)
-        total_requests = rs.read(Int64)
-        total_amount = rs.read(Float64)
-        summary[processor] = {
-          "totalRequests" => total_requests.to_i,
-          "totalAmount" => total_amount.to_f
-        }
+        total_requests = rs.read(Int32)
+        total_amount = rs.read(Int64)
+        summary[processor]["totalRequests"] += total_requests
+        summary[processor]["totalAmount"] += total_amount
       end
     end
-    summary.to_json
+    {
+      "default" => {
+        "totalRequests" => summary["default"]["totalRequests"],
+        "totalAmount" => BigDecimal.new(summary["default"]["totalAmount"], 2).to_f
+      },
+      "fallback" => {
+        "totalRequests" => summary["fallback"]["totalRequests"],
+        "totalAmount" => BigDecimal.new(summary["fallback"]["totalAmount"], 2).to_f
+      }
+    }.to_json
   rescue ex
     env.response.status_code = 500
-    {"error" => "Internal Server Error"}.to_json
+    {"error" => "Internal Server Error", "errorMessage" => ex.message}.to_json
   end
 end
 
