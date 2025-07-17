@@ -1,17 +1,11 @@
 require "kemal"
 require "json"
 require "./payment_types"
-require "./circuit_breaker_wrapper"
 require "./amqp/pubsub-client"
 require "./sqlite_client"
 require "big"
 
 pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
-
-circuit_breaker_wrapper = CircuitBreakerWrapper.new(
-  ENV["PROCESSOR_URL"]?.try(&.presence).nil? ? nil : HttpClient.new("default", pubsub_client, ENV["PROCESSOR_URL"]),
-  ENV["FALLBACK_URL"]?.try(&.presence).nil? ? nil : HttpClient.new("fallback", pubsub_client, ENV["FALLBACK_URL"])
-)
 
 if ENV["DISABLE_LOG"]?
   logging false
@@ -100,12 +94,6 @@ post "/payments" do |env|
   env.response.content_type = "application/json"
   
   begin
-    {% if flag?(:skip_circuit_breaker) %}
-      response = circuit_breaker_wrapper.send_payment(env.request.body.not_nil!, nil)
-      env.response.status_code = response["response"].as(HTTP::Client::Response).status_code
-      next response["response"].as(HTTP::Client::Response).body
-      return
-    {% end %}
     pubsub_client.publish(env.request.body.not_nil!)
     env.response.status_code = 201    
   rescue ex : JSON::ParseException

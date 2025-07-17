@@ -18,14 +18,21 @@ class CircuitBreakerWrapper
     end
   end
 
-  def send_payment(data, token : String?)
+  def send_payment(data : PaymentProcessorRequest, token : String?)
     clients = get_best_suited_client_and_fallback()
     clients.each do |client|
+      if client.current_stats.not_nil!.failing
+        next
+      end
       response = client.send_payment(data, token)
-      if response.success?
+      return {
+        "processor" => client.name,
+        "response" => response.body
+      } if response.success?
+      if response.status_code == 422
         return {
           "processor" => client.name,
-          "response" => response.body
+          "response" => data
         }
       end
     end
