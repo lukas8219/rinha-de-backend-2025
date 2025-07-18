@@ -32,7 +32,7 @@ class Consumer
   end
 
   def start_batch_timer
-    puts "Starting 10 runners out of #{System.cpu_count} CPU"
+    Log.info { "Starting 10 runners out of #{System.cpu_count} CPU" }
     10.times do
       spawn exec_batch
     end
@@ -108,7 +108,7 @@ class Consumer
   end
 
   def run
-    puts "Listening for messages on AMQP queue: #{@pubsub_client.@queue_name}"
+    Log.info { "Listening for messages on AMQP queue: #{@pubsub_client.@queue_name}" }
     @pubsub_client.subscribe do |delivery|
       begin
         request = PaymentProcessorRequest.from_json(delivery.body_io.to_s)
@@ -119,7 +119,7 @@ class Consumer
           @pubsub_client.publish(delivery.body_io)
         end
       rescue ex
-          puts "Error processing message: #{ex.message}"
+        Log.error(exception: ex) { "Error processing message" }
       end
     end
   end
@@ -131,7 +131,7 @@ end
 
 # Handle graceful shutdown
 Signal::INT.trap do
-  puts "Shutting down consumer..."
+  Log.info { "Shutting down consumer..." }
   exit(0)
 end
 

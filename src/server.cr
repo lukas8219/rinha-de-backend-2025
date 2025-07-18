@@ -86,6 +86,7 @@ get "/payments-summary" do |env|
     }.to_json
   rescue ex
     env.response.status_code = 500
+    Log.error(exception: ex) { "Error getting payment summary" }
     {"error" => "Internal Server Error", "errorMessage" => ex.message}.to_json
   end
 end
@@ -97,18 +98,18 @@ post "/payments" do |env|
     pubsub_client.publish(env.request.body.not_nil!)
     env.response.status_code = 201    
   rescue ex : JSON::ParseException
-    puts "Error parsing JSON: #{ex.message}"
+    Log.error(exception: ex) { "Error parsing JSON" }
     env.response.status_code = 400
   rescue ex
-    puts "Error processing payment: #{ex.message}"
+    Log.error(exception: ex) { "Error processing payment" }
     env.response.status_code = 500
   end
 end
 
 # Start the server
 port = ENV["PORT"]?.try(&.to_i) || 3000
-puts "HTTP Server running on port #{port}"
-puts "GET /payment-summary - Get payment summary"
-puts "POST /payments - Create a new payment"
+Log.info { "HTTP Server running on port #{port}" }
+Log.info { "GET /payment-summary - Get payment summary" }
+Log.info { "POST /payments - Create a new payment" }
 
 Kemal.run(port) 
