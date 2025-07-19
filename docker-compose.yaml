@@ -1,3 +1,14 @@
+x-enviromments: &x-enviromments
+  - SQLITE_PATH: "/dev/shm/database.sqlite3?sync=off&journal_mode=WAL&busy_timeout=1000&cache_size=100000"
+  - AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
+  - BATCH_INTERVAL: "50"
+  - PREFETCH_COUNT: "0"
+  - SHARD_COUNT: "5"
+  - SKIP_DELAY: "true"
+  - PROCESSOR_URL: "http://payment-processor-default:8080"
+  - FALLBACK_URL: "http://payment-processor-fallback:8080"
+  - DISABLE_LOG: "true"
+
 version: '3.4'
 services:
   app1: &app
@@ -11,21 +22,9 @@ services:
     cap_add:
       - SYS_ADMIN
       - SYS_PTRACE
-    volumes:
-      - /sys/kernel/debug:/sys/kernel/debug:ro
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - ./profiling-data:/app/profiling-data
     environment:
-      PROCESSOR_URL: "http://payment-processor-default:8080"
-      FALLBACK_URL: "http://payment-processor-fallback:8080"
-      DISABLE_LOG: "true"
-      SQLITE_PATH: "/dev/shm/database.sqlite3?sync=off&journal_mode=WAL&busy_timeout=1000"
-      AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
-      BATCH_INTERVAL: "50"
-      PREFETCH_COUNT: "0"
-      SHARD_COUNT: "5"
-      SKIP_DELAY: "true"
+      <<: *x-enviromments
+      SOCKET_PATH: "/dev/shm/app1.sock"
     networks:
       - backend
       - payment-processor
@@ -47,9 +46,15 @@ services:
           memory: '30MB'
   app2:
     <<: *app
+    environment:
+      <<: *x-enviromments
+      SOCKET_PATH: "/dev/shm/app2.sock"
     hostname: app2
   app3:
     <<: *app
+    environment:
+      <<: *x-enviromments
+      SOCKET_PATH: "/dev/shm/app3.sock"
     hostname: app3
 
   consumer: &consumer
@@ -97,12 +102,20 @@ services:
           memory: '35MB'
 
   nginx: # Load Balancer
+    ipc: host
     image: nginx:latest
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - app1
       - app2
+      - app3
+      - lavinmq
+      - consumer
+      - consumer2
+      - consumer3
+      - consumer4
+      - consumer5
     ports:
       - "9999:9999"
     ulimits:

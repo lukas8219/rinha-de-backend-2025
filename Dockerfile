@@ -17,6 +17,7 @@ RUN crystal build --release -o bin/consumer src/consumer.cr
 FROM ubuntu:24.04 AS base
 RUN apt-get update
 RUN apt install -y libsqlite3-dev
+RUN apt-get install -y sqlite3
 
 # App image
 FROM base AS app

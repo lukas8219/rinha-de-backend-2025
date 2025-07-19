@@ -21,6 +21,39 @@ options "/*" do |env|
   env.response.status_code = 200
 end
 
+TO_CONSTANT = "3000-01-01T00:00:00Z"
+FROM_CONSTANT = "1970-01-01T00:00:00Z"
+
+class Summary
+  property default : SummaryStats?
+  property fallback : SummaryStats?
+
+  def initialize(@default : SummaryStats?, @fallback : SummaryStats?)
+  end
+
+  def to_json(builder : JSON::Builder)
+    builder.object do
+      builder.field "default", default || SummaryStats.new(0, 0.0)
+      builder.field "fallback", fallback || SummaryStats.new(0, 0.0)
+    end
+  end
+end
+
+class SummaryStats
+  property totalRequests : Int32
+  property totalAmount : Float64
+
+  def initialize(@totalRequests : Int32, @totalAmount : Float64)
+  end
+
+  def to_json(builder : JSON::Builder)
+    builder.object do
+      builder.field "totalRequests", totalRequests
+      builder.field "totalAmount", totalAmount
+    end
+  end
+end
+
 post "/admin/purge-database" do |env|
   env.response.content_type = "application/json"
   SqliteClient.instance.db.exec("DELETE FROM processed_payments;")
@@ -37,53 +70,25 @@ get "/payments-summary" do |env|
     to_param = env.params.query["to"]?
 
     unless from_param && to_param
-      from_param = "1970-01-01T00:00:00Z"
-      to_param = "3000-01-01T00:00:00Z"
+      from_param = FROM_CONSTANT
+      to_param = TO_CONSTANT
     end
-
-    begin
-      from_time = Time.parse_iso8601(from_param)
-      to_time = Time.parse_iso8601(to_param)
-    rescue ex
-      env.response.status_code = 400
-      next({"error" => "Invalid 'from' or 'to' timestamp format. Use ISO8601."}.to_json)
-    end
-
-    sqlite_client = SqliteClient.instance
-    db = sqlite_client.db
-
     # Build the match stage for the pipeline with both from and to
-    summary = {
-      "default" => { "totalRequests" => 0, "totalAmount" => 0 },
-      "fallback" => { "totalRequests" => 0, "totalAmount" => 0 }
-    }
-
-    sql = <<-SQL
-      SELECT processor, COUNT(*) AS totalRequests, COALESCE(SUM(amount), 0) AS totalAmount
-      FROM processed_payments
-      WHERE timestamp >= ? AND timestamp <= ?
-      GROUP BY processor
-    SQL
-
-    db.query(sql, from_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ"), to_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ")) do |rs|
+    summary = Summary.new(nil, nil)
+    SqliteClient.instance.query_summary(from_param.not_nil!, to_param.not_nil!) do |rs|
       rs.each do
+        # An easier way is to use a Hash to map processor to SummaryStats, then assign to Summary at the end.
         processor = rs.read(String)
         total_requests = rs.read(Int32)
-        total_amount = rs.read(Int64)
-        summary[processor]["totalRequests"] += total_requests
-        summary[processor]["totalAmount"] += total_amount
+        total_amount = rs.read(Float64)
+        if processor == "default"
+          summary.default ||= SummaryStats.new(total_requests, total_amount)
+        else
+          summary.fallback ||= SummaryStats.new(total_requests, total_amount)
+        end
       end
     end
-    {
-      "default" => {
-        "totalRequests" => summary["default"]["totalRequests"],
-        "totalAmount" => BigDecimal.new(summary["default"]["totalAmount"], 2).to_f
-      },
-      "fallback" => {
-        "totalRequests" => summary["fallback"]["totalRequests"],
-        "totalAmount" => BigDecimal.new(summary["fallback"]["totalAmount"], 2).to_f
-      }
-    }.to_json
+    summary.to_json
   rescue ex
     env.response.status_code = 500
     Log.error(exception: ex) { "Error getting payment summary" }
@@ -112,4 +117,11 @@ Log.info { "HTTP Server running on port #{port}" }
 Log.info { "GET /payment-summary - Get payment summary" }
 Log.info { "POST /payments - Create a new payment" }
 
-Kemal.run(port) 
+Kemal.run(port) do |config|
+  if ENV["SOCKET_PATH"]?
+    config.server.not_nil!.bind_unix(ENV["SOCKET_PATH"]?.not_nil!)
+    File.chmod(ENV["SOCKET_PATH"]?.not_nil!, 0o666)
+  else
+    config.server.not_nil!.bind_tcp(port)
+  end
+end
