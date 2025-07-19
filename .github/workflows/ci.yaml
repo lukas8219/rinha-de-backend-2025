@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - postgres
 
 env:
   REGISTRY: docker.io
@@ -25,7 +26,7 @@ jobs:
         run: |
           SHA_SHORT=$(echo $GITHUB_SHA | cut -c1-9)
           TS_SHORT=$(date +%s)
-          TAG="main-${SHA_SHORT}-${TS_SHORT}"
+          TAG="${GITHUB_REF_NAME}-${SHA_SHORT}-${TS_SHORT}"
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
@@ -43,7 +44,7 @@ jobs:
           platforms: linux/amd64
           target: app
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:latest, ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:${{ steps.gen_tag.outputs.tag }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:${{ steps.gen_tag.outputs.tag }}
 
       - name: Build and push consumer image (Dockerfile.consumer)
         uses: docker/build-push-action@v5
@@ -52,4 +53,7 @@ jobs:
           platforms: linux/amd64
           target: worker
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:latest, ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${{ steps.gen_tag.outputs.tag }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${{ steps.gen_tag.outputs.tag }}
+      
+      - name: Output generated tag
+        run: echo "Generated tag: ${{ steps.gen_tag.outputs.tag }}"

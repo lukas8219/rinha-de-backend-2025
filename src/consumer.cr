@@ -3,7 +3,7 @@ require "json"
 require "./circuit_breaker_wrapper"
 require "./http_client"
 require "./payment_types"
-require "./sqlite_client"
+require "./postgres_client"
 
 class Consumer
   @circuit_breaker : CircuitBreakerWrapper
@@ -25,7 +25,7 @@ class Consumer
     @last_insert_time = Atomic(Int64).new(Time.utc.to_unix_ms)
 
     
-    @processed_payments = SqliteClient.instance.db
+    @processed_payments = PostgresClient.instance.db
     
     @successful_batches = [] of Hash(String, PaymentProcessorRequest | String)
     start_batch_timer
@@ -96,7 +96,7 @@ class Consumer
       @processed_payments.transaction do |tx|
         to_insert.each do |entry|
           @processed_payments.exec(
-            "INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES (?, ?, ?, ?)",
+            "INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES ($1, $2, $3, $4)",
             entry["entry"].as(PaymentProcessorRequest).correlationId,
             entry["entry"].as(PaymentProcessorRequest).requestedAt.not_nil!,
             (entry["entry"].as(PaymentProcessorRequest).amount * 100).round.to_i64,

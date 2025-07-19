@@ -2,7 +2,7 @@ require "kemal"
 require "json"
 require "./payment_types"
 require "./amqp/pubsub-client"
-require "./sqlite_client"
+require "./postgres_client"
 require "big"
 
 pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
@@ -23,7 +23,7 @@ end
 
 post "/admin/purge-database" do |env|
   env.response.content_type = "application/json"
-  SqliteClient.instance.db.exec("DELETE FROM processed_payments;")
+  PostgresClient.instance.db.exec("DELETE FROM processed_payments;")
   env.response.status_code = 200
   {"message" => "Database purged"}.to_json
 end
@@ -49,41 +49,29 @@ get "/payments-summary" do |env|
       next({"error" => "Invalid 'from' or 'to' timestamp format. Use ISO8601."}.to_json)
     end
 
-    sqlite_client = SqliteClient.instance
-    db = sqlite_client.db
+    db = PostgresClient.instance.db
 
     # Build the match stage for the pipeline with both from and to
     summary = {
-      "default" => { "totalRequests" => 0, "totalAmount" => 0 },
-      "fallback" => { "totalRequests" => 0, "totalAmount" => 0 }
+      "default" => { "totalRequests" => 0, "totalAmount" => 0.0 },
+      "fallback" => { "totalRequests" => 0, "totalAmount" => 0.0 }
     }
 
-    sql = <<-SQL
-      SELECT processor, COUNT(*) AS totalRequests, COALESCE(SUM(amount), 0) AS totalAmount
-      FROM processed_payments
-      WHERE timestamp >= ? AND timestamp <= ?
-      GROUP BY processor
-    SQL
+    to_query_iso8601 = to_time.to_s("%Y-%m-%dT%H:%M:%S.%L%:z")
+    from_query_iso8601 = from_time.to_s("%Y-%m-%dT%H:%M:%S.%L%:z")
 
-    db.query(sql, from_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ"), to_time.to_s("%Y-%m-%dT%H:%M:%S.%LZ")) do |rs|
+    PostgresClient.instance.summary_query(from_query_iso8601, to_query_iso8601) do |rs|
       rs.each do
-        processor = rs.read(String)
-        total_requests = rs.read(Int32)
-        total_amount = rs.read(Int64)
+        Log.info { "Reading each result set" }
+        processor = rs.read(String).strip
+        total_requests = rs.read(Int64)
+        total_amount = rs.read(PG::Numeric).to_f64
         summary[processor]["totalRequests"] += total_requests
         summary[processor]["totalAmount"] += total_amount
+        Log.info { "processor: #{processor}, total_requests: #{total_requests}, total_amount: #{total_amount}" }
       end
     end
-    {
-      "default" => {
-        "totalRequests" => summary["default"]["totalRequests"],
-        "totalAmount" => BigDecimal.new(summary["default"]["totalAmount"], 2).to_f
-      },
-      "fallback" => {
-        "totalRequests" => summary["fallback"]["totalRequests"],
-        "totalAmount" => BigDecimal.new(summary["fallback"]["totalAmount"], 2).to_f
-      }
-    }.to_json
+    summary.to_json
   rescue ex
     env.response.status_code = 500
     Log.error(exception: ex) { "Error getting payment summary" }
