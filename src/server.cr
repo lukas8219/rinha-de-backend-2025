@@ -21,8 +21,8 @@ options "/*" do |env|
   env.response.status_code = 200
 end
 
-TO_CONSTANT = "3000-01-01T00:00:00Z"
-FROM_CONSTANT = "1970-01-01T00:00:00Z"
+TO_CONSTANT = Time.parse_iso8601("3000-01-01T00:00:00Z").to_unix_ms.to_f.to_s
+FROM_CONSTANT = Time.parse_iso8601("1970-01-01T00:00:00Z").to_unix_ms.to_f.to_s
 
 class Summary
   property default : SummaryStats?
@@ -63,32 +63,46 @@ end
 
 get "/payments-summary" do |env|
   env.response.content_type = "application/json"
-
   begin
     # Both 'from' and 'to' query parameters are required
-    from_param = env.params.query["from"]?
-    to_param = env.params.query["to"]?
+    from_param_raw = env.params.query["from"]?
+    to_param_raw = env.params.query["to"]?
 
-    unless from_param && to_param
-      from_param = FROM_CONSTANT
-      to_param = TO_CONSTANT
+    from_param = from_param_raw ? Time.parse_iso8601(from_param_raw).to_unix_ms.to_f.to_s : FROM_CONSTANT
+    to_param = to_param_raw ? Time.parse_iso8601(to_param_raw).to_unix_ms.to_f.to_s : TO_CONSTANT
+
+    hosts_rs = SqliteClient.instance.db.query("SELECT hostname FROM consumers;")
+    hosts = [] of String
+    hosts_rs.each do
+      hosts << hosts_rs.read(String)
     end
-    # Build the match stage for the pipeline with both from and to
-    summary = Summary.new(nil, nil)
-    SqliteClient.instance.query_summary(from_param.not_nil!, to_param.not_nil!) do |rs|
-      rs.each do
-        # An easier way is to use a Hash to map processor to SummaryStats, then assign to Summary at the end.
-        processor = rs.read(String)
-        total_requests = rs.read(Int32)
-        total_amount = rs.read(Float64)
-        if processor == "default"
-          summary.default ||= SummaryStats.new(total_requests, total_amount)
-        else
-          summary.fallback ||= SummaryStats.new(total_requests, total_amount)
-        end
+  
+    # For each host, make a request to its /stats endpoint via UNIX socket
+  
+    stats_results = {
+      "default" => { "totalRequests" => 0, "totalAmount" => 0 },
+      "fallback" => { "totalRequests" => 0, "totalAmount" => 0 }
+    } of String => Hash(String, Int32)
+  
+    hosts.each do |host|
+      socket = UNIXSocket.new(host)
+      client = HTTP::Client.new(socket)
+      response = client.get("/state-summary?from=#{from_param}&to=#{to_param}")
+      if response.status_code == 200
+        parsed_json = JSON.parse(response.body)
+        stats_results["default"]["totalRequests"] += parsed_json["default"]["totalRequests"].as_i
+        stats_results["default"]["totalAmount"] += parsed_json["default"]["totalAmount"].as_i
+        stats_results["fallback"]["totalRequests"] += parsed_json["fallback"]["totalRequests"].as_i
+        stats_results["fallback"]["totalAmount"] += parsed_json["fallback"]["totalAmount"].as_i
       end
+      client.close
     end
-    summary.to_json
+  
+    env.response.status_code = 200
+    {
+      "default" => { "totalRequests" => stats_results["default"]["totalRequests"], "totalAmount" => (stats_results["default"]["totalAmount"] / 100.0).round.to_f },
+      "fallback" => { "totalRequests" => stats_results["fallback"]["totalRequests"], "totalAmount" => (stats_results["fallback"]["totalAmount"] / 100.0).round.to_f }
+    }.to_json
   rescue ex
     env.response.status_code = 500
     Log.error(exception: ex) { "Error getting payment summary" }
@@ -112,7 +126,7 @@ post "/payments" do |env|
 end
 
 # Start the server
-port = ENV["PORT"]?.try(&.to_i) || 3000
+port = ENV["PORT"]?.try(&.to_i) || 9999
 Log.info { "HTTP Server running on port #{port}" }
 Log.info { "GET /payment-summary - Get payment summary" }
 Log.info { "POST /payments - Create a new payment" }

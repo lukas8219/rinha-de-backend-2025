@@ -33,10 +33,10 @@ clean:
 	rm -rf lib/
 
 dev-server: lib build-skiplist
-	$(CRYSTAL_BIN) run src/server.cr
+	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/server.cr
 
 dev-consumer: lib build-skiplist
-	$(CRYSTAL_BIN) run src/consumer.cr 
+	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/consumer.cr 
 
 spec-skiplist: lib build-skiplist
 	$(CRYSTAL_BIN) spec src/skiplist_spec.cr

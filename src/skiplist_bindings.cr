@@ -56,6 +56,10 @@ struct SkiplistRangeResult
     end
   end
 
+  def sum
+    @elements.sum { |element| element }
+  end
+
   def each_with_score
     each { |element, score| yield element, score }
   end
