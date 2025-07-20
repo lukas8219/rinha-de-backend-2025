@@ -112,16 +112,18 @@ get "/payments-summary" do |env|
     end
     # Build the match stage for the pipeline with both from and to
     summary = Summary.new(nil, nil)
-    SqliteClient.instance.query_summary(from_param.not_nil!, to_param.not_nil!) do |rs|
+    SqliteClient.instance.db.query("SELECT amount/100.0, processor FROM processed_payments;") do |rs|
       rs.each do
-        # An easier way is to use a Hash to map processor to SummaryStats, then assign to Summary at the end.
+        amount = rs.read(Float64)
         processor = rs.read(String)
-        total_requests = rs.read(Int32)
-        total_amount = rs.read(Float64)
         if processor == "default"
-          summary.default ||= SummaryStats.new(total_requests, total_amount)
+          summary.default ||= SummaryStats.new(0, 0.0)
+          summary.default.not_nil!.totalRequests += 1
+          summary.default.not_nil!.totalAmount += amount
         else
-          summary.fallback ||= SummaryStats.new(total_requests, total_amount)
+          summary.fallback ||= SummaryStats.new(0, 0.0)
+          summary.fallback.not_nil!.totalRequests += 1
+          summary.fallback.not_nil!.totalAmount += amount
         end
       end
     end
