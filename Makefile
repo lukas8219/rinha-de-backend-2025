@@ -29,10 +29,10 @@ clean:
 	rm -rf lib/
 
 dev-server: lib
-	HOSTNAME=1 SHARD_COUNT=1 SKIP_DELAY=true $(CRYSTAL_BIN) run src/server.cr
+	SOCKET_SUB_FOLDER=/tmp HOSTNAME=1 SHARD_COUNT=1 SKIP_DELAY=true $(CRYSTAL_BIN) run src/server.cr
 
 dev-consumer: lib
-	HOSTNAME=1 SHARD_COUNT=1 SKIP_DELAY=true $(CRYSTAL_BIN) run src/consumer.cr
+	SOCKET_SUB_FOLDER=/tmp HOSTNAME=1 SHARD_COUNT=1 SKIP_DELAY=true $(CRYSTAL_BIN) run src/consumer.cr
 
 spec: lib
 	$(CRYSTAL_BIN) spec src/*/*.spec.cr

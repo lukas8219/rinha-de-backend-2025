@@ -4,6 +4,7 @@ require "./payment_types"
 require "./amqp/pubsub-client"
 require "./sqlite_client"
 require "big"
+require "http/client"
 
 Log.setup_from_env
 
@@ -54,6 +55,40 @@ class SummaryStats
       builder.field "totalAmount", totalAmount
     end
   end
+end
+
+get "/admin/consumer-stats" do |env|
+  env.response.content_type = "application/json"
+  # query the all 5 consumers and get the stats
+  hosts_rs = SqliteClient.instance.db.query("SELECT hostname FROM consumers;")
+  hosts = [] of String
+  hosts_rs.each do
+    hosts << hosts_rs.read(String)
+  end
+
+  # For each host, make a request to its /stats endpoint via UNIX socket
+
+  stats_results = {} of String => JSON::Any
+
+  hosts.each do |host|
+    begin
+      # Connect to the UNIX socket and request /stats
+      socket = UNIXSocket.new(host)
+      client = HTTP::Client.new(socket)
+      response = client.get("/stats")
+      if response.status_code == 200
+        stats_results[host] = JSON.parse(response.body)
+      else
+        stats_results[host] = JSON.parse(%({"error": "Non-200 response", "status": #{response.status_code}}))
+      end
+      client.close
+    rescue ex
+      stats_results[host] = JSON.parse(%({"error": "Failed to connect or parse: #{ex.message}"}))
+    end
+  end
+
+  env.response.status_code = 200
+  stats_results.to_json
 end
 
 post "/admin/purge-database" do |env|

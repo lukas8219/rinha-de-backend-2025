@@ -30,3 +30,4 @@ package-lock.json
 
 src/lib/libck_wrapper.a
 src/lib/ck_wrapper.o
+database.sqlite*

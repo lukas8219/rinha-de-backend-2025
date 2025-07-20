@@ -81,6 +81,22 @@ services:
     <<: *consumer
     hostname: "5"
 
+  cleanup:
+    image: alpine:latest
+    command: ["/bin/sh", "-c", "rm -rf /dev/shm/*"]
+    volumes:
+      - /dev/shm:/dev/shm
+    deploy:
+      resources:
+        limits:
+          cpus: '0.01'
+          memory: '10MB'
+    restart: "no"
+    networks:
+      - backend
+
+
+
   lavinmq:
     image: cloudamqp/lavinmq:latest
     container_name: lavinmq
@@ -90,6 +106,8 @@ services:
       timeout: 10s
       retries: 20
       start_period: 5s
+    depends_on:
+      - cleanup
     ports:
       - "5672:5672"
       - "15672:15672"

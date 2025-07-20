@@ -5,6 +5,7 @@ require "./http_client"
 require "./payment_types"
 require "./sqlite_client"
 require "./lib/lock-free-deque"
+require "kemal"
 
 Log.setup_from_env
 
@@ -18,6 +19,7 @@ class Consumer
   @last_insert_time : Atomic(Int64)
   @insert_channel : Channel(Hash(String, PaymentProcessorRequest | String))
   @delay : Time::Span
+  property inserted_records : Atomic(Int32)
 
   def initialize
     amqp_url = ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"
@@ -30,8 +32,8 @@ class Consumer
     @last_insert_time = Atomic(Int64).new(Time.utc.to_unix_ms)
     @insert_channel = Channel(Hash(String, PaymentProcessorRequest | String)).new
     @delay = ENV["BATCH_INTERVAL"]? ? ENV["BATCH_INTERVAL"].to_f.milliseconds : 125.milliseconds
+    @inserted_records = Atomic(Int32).new(0)
 
-    
     @processed_payments = SqliteClient.instance.db
     
     @successful_batches = LockFreeDeque(Hash(String, PaymentProcessorRequest | String)).new(1000000)
@@ -105,34 +107,37 @@ class Consumer
   def trigger_process
     return if @successful_batches.empty?
     to_insert = [] of Hash(String, PaymentProcessorRequest | String)
+    batch_records = LockFreeDeque(Hash(String, PaymentProcessorRequest | String)).new(1000000)
     init_ts = Time.utc.to_unix_ms
     while !@successful_batches.empty?
       Log.info { "Getting next payment from batch" }
       next_payment = @successful_batches.shift?
       if next_payment
         Log.info { "Inserting payment into batch" }
-        to_insert << next_payment
+        batch_records << next_payment
       else
         break
       end
     end
 
-    if to_insert.empty?
+    if batch_records.empty?
       return
     end
 
     # Batch insert with a single INSERT statement and multiple VALUES
-    Log.info { "Inserting batch of #{to_insert.size} payments" }
-    unless to_insert.empty?
+    unless batch_records.empty?
       @processed_payments.transaction do |tx|
-        to_insert.each do |entry|
-          @processed_payments.exec(
-            "INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES (?, ?, ?, ?)",
-            entry["entry"].as(PaymentProcessorRequest).correlationId,
-            entry["entry"].as(PaymentProcessorRequest).requestedAt.not_nil!,
-            (entry["entry"].as(PaymentProcessorRequest).amount * 100).round.to_i64,
-            entry["processor"].to_s
-          )
+        while !batch_records.empty?
+          entry = batch_records.shift?
+          if entry
+            @processed_payments.exec(
+              "INSERT INTO processed_payments (id, timestamp, amount, processor) VALUES (?, ?, ?, ?)",
+              entry["entry"].as(PaymentProcessorRequest).correlationId,
+              entry["entry"].as(PaymentProcessorRequest).requestedAt.not_nil!,  
+              (entry["entry"].as(PaymentProcessorRequest).amount * 100).round.to_i64,
+              entry["processor"].to_s
+            )
+          end
         end
       end
     end
@@ -163,12 +168,40 @@ end
 # Handle graceful shutdown
 Signal::INT.trap do
   Log.info { "Shutting down consumer..." }
+  SqliteClient.instance.close
   exit(0)
 end
-
-# Start the consumer
 consumer = Consumer.new
+
+hostname = ENV["HOSTNAME"]? || "consumer"
+socket_sub_folder = ENV.fetch("SOCKET_SUB_FOLDER", "/dev/shm")
+socket_path = "#{socket_sub_folder}/#{hostname}.sock"
+SqliteClient.instance.insert_consumer(socket_path)
+
+# Remove the socket file if it already exists to avoid bind errors
+if File.exists?(socket_path)
+  File.delete(socket_path)
+end
+
+# Simple health check endpoint
+get "/stats" do |env|
+  env.response.content_type = "application/json"
+  { "inserted_records" => consumer.inserted_records.get }.to_json
+end
+
+# Start Kemal server bound to the UNIX socket
+spawn do
+  Log.info { "Starting Kemal server" }
+  Kemal.run do |config|
+    config.server.not_nil!.bind_unix(socket_path)
+    File.chmod(socket_path, 0o666)
+  end
+end
+# Start the consumer
 consumer.run 
 loop do
   sleep 1.seconds
 end
+
+
+# Determine the UNIX socket path using the HOSTNAME environment variable
