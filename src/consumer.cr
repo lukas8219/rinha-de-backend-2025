@@ -110,10 +110,8 @@ class Consumer
     batch_records = LockFreeDeque(Hash(String, PaymentProcessorRequest | String)).new(1000000)
     init_ts = Time.utc.to_unix_ms
     while !@successful_batches.empty?
-      Log.info { "Getting next payment from batch" }
       next_payment = @successful_batches.shift?
       if next_payment
-        Log.info { "Inserting payment into batch" }
         batch_records << next_payment
       else
         break

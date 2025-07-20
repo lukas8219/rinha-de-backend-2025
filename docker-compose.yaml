@@ -8,6 +8,7 @@ x-enviromments: &x-enviromments
   - PROCESSOR_URL: "http://payment-processor-default:8080"
   - FALLBACK_URL: "http://payment-processor-fallback:8080"
   - CRYSTAL_LOG_LEVEL: "DEBUG"
+  - DISABLE_LOG: "true"
 
 version: '3.4'
 services:
@@ -50,12 +51,6 @@ services:
       <<: *x-enviromments
       SOCKET_PATH: "/dev/shm/app2.sock"
     hostname: app2
-  app3:
-    <<: *app
-    environment:
-      <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app3.sock"
-    hostname: app3
 
   consumer: &consumer
     <<: *app
@@ -63,27 +58,19 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: '35MB'
+          cpus: '0.625'
+          memory: '75MB'
     build:
       context: .
       target: worker
   consumer2:
     <<: *consumer
     hostname: "2"
-  consumer3:
-    <<: *consumer
-    hostname: "3"
-  consumer4:
-    <<: *consumer
-    hostname: "4"
-  consumer5:
-    <<: *consumer
-    hostname: "5"
 
   cleanup:
     image: alpine:latest
     command: ["/bin/sh", "-c", "rm -rf /dev/shm/*"]
+    ipc: host
     volumes:
       - /dev/shm:/dev/shm
     deploy:
@@ -127,13 +114,9 @@ services:
     depends_on:
       - app1
       - app2
-      - app3
       - lavinmq
       - consumer
       - consumer2
-      - consumer3
-      - consumer4
-      - consumer5
     ports:
       - "9999:9999"
     ulimits:
