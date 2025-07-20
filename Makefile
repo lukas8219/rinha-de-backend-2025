@@ -8,6 +8,10 @@ lib: shard.yml
 	$(SHARDS_BIN) install
 	@touch lib
 
+lib-c: lib
+	gcc -c src/lib/ck_wrapper.c -o src/lib/ck_wrapper.o $(pkg-config --cflags ck)
+	ar rcs src/lib/libck_wrapper.a src/lib/ck_wrapper.o
+
 deps: lib
 
 build: lib
@@ -25,10 +29,13 @@ clean:
 	rm -rf lib/
 
 dev-server: lib
-	$(CRYSTAL_BIN) run src/server.cr
+	HOSTNAME=1 SHARD_COUNT=1 SKIP_DELAY=true $(CRYSTAL_BIN) run src/server.cr
 
 dev-consumer: lib
-	$(CRYSTAL_BIN) run src/consumer.cr 
+	HOSTNAME=1 SHARD_COUNT=1 SKIP_DELAY=true $(CRYSTAL_BIN) run src/consumer.cr
+
+spec: lib
+	$(CRYSTAL_BIN) spec src/*/*.spec.cr
 
 download-perf-tooling:
 	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/flamegraph.pl -O profiling-data/flamegraph.pl

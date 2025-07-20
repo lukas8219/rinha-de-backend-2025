@@ -4,15 +4,20 @@ require "./circuit_breaker_wrapper"
 require "./http_client"
 require "./payment_types"
 require "./sqlite_client"
+require "./lib/lock-free-deque"
+
+Log.setup_from_env
 
 class Consumer
   @circuit_breaker : CircuitBreakerWrapper
   @processed_payments : DB::Database
-  @successful_batches : Array(Hash(String, PaymentProcessorRequest | String))
+  @successful_batches : LockFreeDeque(Hash(String, PaymentProcessorRequest | String))
   @pubsub_client : PubSubClient
   @atomic_index : Atomic(Int32)
   @last_insert_offset : Atomic(Int32)
   @last_insert_time : Atomic(Int64)
+  @insert_channel : Channel(Hash(String, PaymentProcessorRequest | String))
+  @delay : Time::Span
 
   def initialize
     amqp_url = ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"
@@ -23,12 +28,33 @@ class Consumer
     @last_insert_offset = Atomic(Int32).new(0)
     @circuit_breaker = CircuitBreakerWrapper.new(process_client, fallback_client)
     @last_insert_time = Atomic(Int64).new(Time.utc.to_unix_ms)
+    @insert_channel = Channel(Hash(String, PaymentProcessorRequest | String)).new
+    @delay = ENV["BATCH_INTERVAL"]? ? ENV["BATCH_INTERVAL"].to_f.milliseconds : 125.milliseconds
 
     
     @processed_payments = SqliteClient.instance.db
     
-    @successful_batches = [] of Hash(String, PaymentProcessorRequest | String)
-    start_batch_timer
+    @successful_batches = LockFreeDeque(Hash(String, PaymentProcessorRequest | String)).new(1000000)
+    if ENV["USE_CHANNEL"]?
+      rcv_loop
+    else
+      start_batch_timer
+    end
+  end
+  
+  def rcv_loop
+    spawn do
+      loop do
+        entry = @insert_channel.receive
+        @processed_payments.exec(
+          "INSERT INTO processed_payments (external_id, timestamp, amount, processor) VALUES (?, ?, ?, ?)",
+          entry["entry"].as(PaymentProcessorRequest).correlationId,
+          entry["entry"].as(PaymentProcessorRequest).requestedAt.not_nil!,
+          (entry["entry"].as(PaymentProcessorRequest).amount * 100).round.to_i64,
+          entry["processor"].to_s
+        )
+      end
+    end
   end
 
   def start_batch_timer
@@ -45,17 +71,16 @@ class Consumer
         sleep 1.nanoseconds
         next
       end
-      delay = ENV["BATCH_INTERVAL"]? ? ENV["BATCH_INTERVAL"].to_f.milliseconds : 125.milliseconds
       now = Time.utc.to_unix_ms
       last_insert = @last_insert_time.get
       elapsed = now - last_insert
 
-      if elapsed >= delay.to_i
+      if elapsed >= @delay.to_i
         trigger_process
         # After processing, update last_insert_time inside trigger_process
         sleep 0.01.nanoseconds # short sleep to avoid busy loop
       else
-        sleep_time = delay.to_i - elapsed
+        sleep_time = @delay.to_i - elapsed
         sleep sleep_time > 0 ? sleep_time.nanoseconds : 0.01.nanoseconds
       end
     end
@@ -79,20 +104,26 @@ class Consumer
 
   def trigger_process
     return if @successful_batches.empty?
-    start_offset = @last_insert_offset.get
-    end_offset = @atomic_index.get
-    if start_offset == end_offset
+    to_insert = [] of Hash(String, PaymentProcessorRequest | String)
+    init_ts = Time.utc.to_unix_ms
+    while !@successful_batches.empty?
+      Log.info { "Getting next payment from batch" }
+      next_payment = @successful_batches.shift?
+      if next_payment
+        Log.info { "Inserting payment into batch" }
+        to_insert << next_payment
+      else
+        break
+      end
+    end
+
+    if to_insert.empty?
       return
     end
-    @last_insert_offset.max(end_offset)
-
-    to_insert : Array(Hash(String, PaymentProcessorRequest | String)) = @successful_batches[start_offset...end_offset].as(Array(Hash(String, PaymentProcessorRequest | String)))
-    last_insert = Time.utc.to_unix_ms
 
     # Batch insert with a single INSERT statement and multiple VALUES
-    
+    Log.info { "Inserting batch of #{to_insert.size} payments" }
     unless to_insert.empty?
-      @last_insert_time.max(last_insert)
       @processed_payments.transaction do |tx|
         to_insert.each do |entry|
           @processed_payments.exec(

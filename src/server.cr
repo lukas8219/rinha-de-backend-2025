@@ -5,6 +5,8 @@ require "./amqp/pubsub-client"
 require "./sqlite_client"
 require "big"
 
+Log.setup_from_env
+
 pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
 
 if ENV["DISABLE_LOG"]?
@@ -112,7 +114,7 @@ post "/payments" do |env|
 end
 
 # Start the server
-port = ENV["PORT"]?.try(&.to_i) || 3000
+port = ENV["PORT"]?.try(&.to_i) || 9999
 Log.info { "HTTP Server running on port #{port}" }
 Log.info { "GET /payment-summary - Get payment summary" }
 Log.info { "POST /payments - Create a new payment" }

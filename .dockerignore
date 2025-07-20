@@ -2,4 +2,6 @@
 .vscode
 .gitignore
 .git
+./src/lib/ck_wrapper.o
+./src/lib/libck_wrapper.a
 .env
