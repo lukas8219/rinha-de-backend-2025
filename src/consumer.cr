@@ -6,6 +6,7 @@ require "./payment_types"
 require "./sqlite_client"
 require "./skiplist_bindings"
 require "kemal"
+require "./json_generator_bindings"
 
 class Consumer
   @circuit_breaker : CircuitBreakerWrapper
@@ -84,7 +85,7 @@ get "/payments-summary" do |env|
   default_sum = default_range.sum / 100.0
   fallback_count = fallback_range.size
   fallback_sum = fallback_range.sum / 100.0
-  { "default" => { "totalRequests" => default_count, "totalAmount" => default_sum }, "fallback" => { "totalRequests" => fallback_count, "totalAmount" => fallback_sum } }.to_json
+  FastJsonGenerator.payment_summary(default_count, default_sum, fallback_count, fallback_sum)
 end
 
 # Remove the socket file if it already exists to avoid bind errors

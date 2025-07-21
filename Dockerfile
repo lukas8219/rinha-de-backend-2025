@@ -10,6 +10,7 @@ COPY . .
 
 # Create bin directory and build the application
 RUN make build-skiplist
+RUN make build-json-generator
 RUN mkdir -p bin
 RUN crystal build -Dpreview_mt --release -o bin/server src/server.cr
 RUN crystal build --release -o bin/consumer src/consumer.cr
