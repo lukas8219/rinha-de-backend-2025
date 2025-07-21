@@ -13,7 +13,7 @@ RUN make build-skiplist
 RUN make build-json-generator
 RUN mkdir -p bin
 RUN crystal build -Dpreview_mt --release -o bin/server src/server.cr
-RUN crystal build --release -o bin/consumer src/consumer.cr
+RUN crystal build -Dpreview_mt -Dexecution_context --release -o bin/consumer src/consumer.cr
 
 # Debug image
 FROM ubuntu:24.04 AS base
