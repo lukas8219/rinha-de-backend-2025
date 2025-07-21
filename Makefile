@@ -1,4 +1,4 @@
-CRYSTAL_BIN ?= /Users/lucas.polesello/.asdf/installs/crystal/1.17.0/bin/crystal
+CRYSTAL_BIN ?= crystal
 SHARDS_BIN ?= shards
 CC ?= gcc
 CFLAGS ?= -O2 -fPIC -Wall
