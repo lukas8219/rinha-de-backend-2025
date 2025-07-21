@@ -12,6 +12,8 @@ class Consumer
   @pubsub_client : PubSubClient
   property default_skiplist : Skiplist
   property fallback_skiplist : Skiplist
+  @default_mutex = Mutex.new
+  @fallback_mutex = Mutex.new
 
   def initialize
     amqp_url = ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"
@@ -25,9 +27,13 @@ class Consumer
 
   def add_successful_payment(payment : PaymentProcessorRequest, processor : String)
     if processor == "default"
-      @default_skiplist.insert(Time.parse_iso8601(payment.requestedAt.not_nil!).to_unix_ms.to_f, (payment.amount * 100.0).round.to_i64)
+      @default_mutex.synchronize do
+        @default_skiplist.insert(Time.parse_iso8601(payment.requestedAt.not_nil!).to_unix_ms.to_f, (payment.amount * 100.0).round.to_i64)
+      end
     else
-      @fallback_skiplist.insert(Time.parse_iso8601(payment.requestedAt.not_nil!).to_unix_ms.to_f, (payment.amount * 100.0).round.to_i64)
+      @fallback_mutex.synchronize do
+        @fallback_skiplist.insert(Time.parse_iso8601(payment.requestedAt.not_nil!).to_unix_ms.to_f, (payment.amount * 100.0).round.to_i64)
+      end
     end
   end
 
@@ -97,7 +103,7 @@ Fiber::ExecutionContext::Isolated.new("server") do
   end
 end
 
-Fiber::ExecutionContext::Isolated.new("consumer") do
+Fiber::ExecutionContext::Parallel.new("consumer", (System.cpu_count/2).to_i32).spawn do
   consumer.run
 end
    
