@@ -69,17 +69,21 @@ hostname = ENV["HOSTNAME"]? || "consumer"
 socket_sub_folder = ENV.fetch("SOCKET_SUB_FOLDER", "/dev/shm")
 socket_path = "#{socket_sub_folder}/#{hostname}.sock"
 SqliteClient.instance.insert_consumer(socket_path)
+TO_CONSTANT = Time.parse_iso8601("3000-01-01T00:00:00Z").to_unix_ms.to_f
+FROM_CONSTANT = Time.parse_iso8601("1970-01-01T00:00:00Z").to_unix_ms.to_f
 
-get "/state-summary" do |env|
+get "/payments-summary" do |env|
   from_param_raw = env.params.query["from"]?
   to_param_raw = env.params.query["to"]?
+  from_param = from_param_raw ? Time.parse_iso8601(from_param_raw).to_unix_ms.to_f : FROM_CONSTANT
+  to_param = to_param_raw ? Time.parse_iso8601(to_param_raw).to_unix_ms.to_f : TO_CONSTANT
   #query internally and return results
-  default_range = consumer.default_skiplist.range_scan(from_param_raw.not_nil!.to_f, to_param_raw.not_nil!.to_f)
-  fallback_range = consumer.fallback_skiplist.range_scan(from_param_raw.not_nil!.to_f, to_param_raw.not_nil!.to_f)
+  default_range = consumer.default_skiplist.range_scan(from_param, to_param)
+  fallback_range = consumer.fallback_skiplist.range_scan(from_param, to_param)
   default_count = default_range.size
-  default_sum = default_range.sum
+  default_sum = default_range.sum / 100.0
   fallback_count = fallback_range.size
-  fallback_sum = fallback_range.sum
+  fallback_sum = fallback_range.sum / 100.0
   { "default" => { "totalRequests" => default_count, "totalAmount" => default_sum }, "fallback" => { "totalRequests" => fallback_count, "totalAmount" => fallback_sum } }.to_json
 end
 

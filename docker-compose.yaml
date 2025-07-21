@@ -7,7 +7,6 @@ x-enviromments: &x-enviromments
   - SKIP_DELAY: "true"
   - PROCESSOR_URL: "http://payment-processor-default:8080"
   - FALLBACK_URL: "http://payment-processor-fallback:8080"
-  - DISABLE_LOG: "true"
 
 version: '3.4'
 services:
