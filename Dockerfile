@@ -11,7 +11,7 @@ COPY . .
 # Create bin directory and build the application
 RUN make build-skiplist
 RUN mkdir -p bin
-RUN crystal build --release -o bin/server src/server.cr
+RUN crystal build -Dpreview_mt --release -o bin/server src/server.cr
 RUN crystal build --release -o bin/consumer src/consumer.cr
 
 # Debug image

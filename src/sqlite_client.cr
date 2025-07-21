@@ -1,7 +1,10 @@
 require "sqlite3"
+require "socket"
+require "http/client"
 
 class SqliteClient
   @@instance : SqliteClient?
+  @@consumer_clients : Array(HTTP::Client)?
 
   def self.instance
     @@instance ||= new
@@ -24,6 +27,7 @@ class SqliteClient
       GROUP BY processor
     SQL
     @summary_statement = @db.build(sql)
+    get_consumer_clients
   end
 
   def insert_consumer(hostname : String)
@@ -36,6 +40,18 @@ class SqliteClient
 
   def db
     @db
+  end
+
+  def get_consumer_clients
+    return @@consumer_clients if @@consumer_clients
+    @@consumer_clients ||= begin
+      rs = @db.query("SELECT hostname FROM consumers;")
+      hosts = [] of HTTP::Client
+      rs.each do
+        hosts << HTTP::Client.new(UNIXSocket.new(rs.read(String)))
+      end
+      hosts
+    end
   end
 
   def close

@@ -7,6 +7,9 @@ require "big"
 
 pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
 
+#init
+SqliteClient.instance
+
 if ENV["DISABLE_LOG"]?
   logging false
 end
@@ -70,12 +73,6 @@ get "/payments-summary" do |env|
 
     from_param = from_param_raw ? Time.parse_iso8601(from_param_raw).to_unix_ms.to_f.to_s : FROM_CONSTANT
     to_param = to_param_raw ? Time.parse_iso8601(to_param_raw).to_unix_ms.to_f.to_s : TO_CONSTANT
-
-    hosts_rs = SqliteClient.instance.db.query("SELECT hostname FROM consumers;")
-    hosts = [] of String
-    hosts_rs.each do
-      hosts << hosts_rs.read(String)
-    end
   
     # For each host, make a request to its /stats endpoint via UNIX socket
   
@@ -84,9 +81,7 @@ get "/payments-summary" do |env|
       "fallback" => { "totalRequests" => 0, "totalAmount" => 0 }
     } of String => Hash(String, Int32)
   
-    hosts.each do |host|
-      socket = UNIXSocket.new(host)
-      client = HTTP::Client.new(socket)
+    SqliteClient.instance.get_consumer_clients.not_nil!.each do |client|
       response = client.get("/state-summary?from=#{from_param}&to=#{to_param}")
       if response.status_code == 200
         parsed_json = JSON.parse(response.body)
@@ -95,7 +90,6 @@ get "/payments-summary" do |env|
         stats_results["fallback"]["totalRequests"] += parsed_json["fallback"]["totalRequests"].as_i
         stats_results["fallback"]["totalAmount"] += parsed_json["fallback"]["totalAmount"].as_i
       end
-      client.close
     end
   
     env.response.status_code = 200
