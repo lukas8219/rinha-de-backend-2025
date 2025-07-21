@@ -18,8 +18,12 @@ build-skiplist:
 	$(CC) $(CFLAGS) -c src/lib/skiplist.c -o lib/c/skiplist.o
 	ar rcs lib/c/libskiplist.a lib/c/skiplist.o
 
-build: lib build-skiplist
-	$(CRYSTAL_BIN) build src/rinha-2025.cr -o bin/server
+# Build the JSON generator C library
+build-json-generator:
+	$(CC) $(CFLAGS) -c src/lib/json_generator.c -o src/lib/json_generator.o
+
+build: lib build-skiplist build-json-generator
+	$(CRYSTAL_BIN) build src/server.cr -o bin/server
 	$(CRYSTAL_BIN) build src/consumer.cr -o bin/consumer
 
 run-server: build
@@ -32,17 +36,20 @@ clean:
 	rm -rf bin/
 	rm -rf lib/
 
-dev-server: lib build-skiplist
+dev-server: lib build-skiplist build-json-generator
 	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/server.cr
 
-dev-consumer: lib build-skiplist
+dev-consumer: lib build-skiplist build-json-generator
 	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/consumer.cr 
 
-spec-skiplist: lib build-skiplist
+spec-skiplist: lib build-skiplist build-json-generator
 	$(CRYSTAL_BIN) spec src/skiplist_spec.cr
 
-benchmark-skiplist: lib build-skiplist
+benchmark-skiplist: lib build-skiplist build-json-generator
 	$(CRYSTAL_BIN) run src/skiplist_benchmark.cr --release
+
+benchmark-json: lib build-skiplist build-json-generator
+	$(CRYSTAL_BIN) run src/json_benchmark.cr --release
 
 download-perf-tooling:
 	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/flamegraph.pl -O profiling-data/flamegraph.pl

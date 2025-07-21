@@ -3,6 +3,7 @@ require "json"
 require "./payment_types"
 require "./amqp/pubsub-client"
 require "./sqlite_client"
+require "./json_generator_bindings"
 require "big"
 
 pubsub_client = PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/")
@@ -93,10 +94,13 @@ get "/payments-summary" do |env|
     end
   
     env.response.status_code = 200
-    {
-      "default" => { "totalRequests" => stats_results["default"]["totalRequests"], "totalAmount" => (stats_results["default"]["totalAmount"] / 100.0) },
-      "fallback" => { "totalRequests" => stats_results["fallback"]["totalRequests"], "totalAmount" => (stats_results["fallback"]["totalAmount"] / 100.0) }
-    }.to_json
+    # Use fast C JSON generator for maximum performance
+    FastJsonGenerator.payment_summary(
+      stats_results["default"]["totalRequests"], 
+      stats_results["default"]["totalAmount"] / 100.0,
+      stats_results["fallback"]["totalRequests"], 
+      stats_results["fallback"]["totalAmount"] / 100.0
+    )
   rescue ex
     env.response.status_code = 500
     Log.error(exception: ex) { "Error getting payment summary" }

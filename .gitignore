@@ -29,3 +29,5 @@ node_modules/
 package-lock.json
 
 database.sqlite*
+src/lib/*.h
+src/lib/*.a
