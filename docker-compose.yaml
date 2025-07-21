@@ -3,7 +3,7 @@ x-enviromments: &x-enviromments
   - AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
   - BATCH_INTERVAL: "50"
   - PREFETCH_COUNT: "0"
-  - SHARD_COUNT: "5"
+  - SHARD_COUNT: "1"
   - SKIP_DELAY: "true"
   - PROCESSOR_URL: "http://payment-processor-default:8080"
   - FALLBACK_URL: "http://payment-processor-fallback:8080"
@@ -43,19 +43,13 @@ services:
       resources:
         limits:
           cpus: '0.1'
-          memory: '30MB'
+          memory: '20MB'
   app2:
     <<: *app
     environment:
       <<: *x-enviromments
       SOCKET_PATH: "/dev/shm/app2.sock"
     hostname: app2
-  app3:
-    <<: *app
-    environment:
-      <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app3.sock"
-    hostname: app3
 
   consumer: &consumer
     <<: *app
@@ -63,23 +57,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: '35MB'
+          cpus: '1.1'
+          memory: '150MB'
     build:
       context: .
       target: worker
-  consumer2:
-    <<: *consumer
-    hostname: "2"
-  consumer3:
-    <<: *consumer
-    hostname: "3"
-  consumer4:
-    <<: *consumer
-    hostname: "4"
-  consumer5:
-    <<: *consumer
-    hostname: "5"
 
   cleanup:
     image: alpine:latest
@@ -126,13 +108,8 @@ services:
     depends_on:
       - app1
       - app2
-      - app3
       - lavinmq
       - consumer
-      - consumer2
-      - consumer3
-      - consumer4
-      - consumer5
     ports:
       - "9999:9999"
     ulimits:
