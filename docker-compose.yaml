@@ -17,11 +17,7 @@ services:
       context: .
       target: app
     hostname: app1
-    privileged: true
     restart: unless-stopped
-    cap_add:
-      - SYS_ADMIN
-      - SYS_PTRACE
     environment:
       <<: *x-enviromments
       SOCKET_PATH: "/dev/shm/app1.sock"
@@ -65,10 +61,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.9'
+          cpus: '1'
           memory: '150MB'
         reservations:
-          cpus: '0.01'
+          cpus: '1'
           memory: '150MB'
     build:
       context: .
@@ -76,24 +72,6 @@ services:
     depends_on:
       lavinmq:
         condition: service_healthy
-
-  cleanup:
-    image: alpine:latest
-    command: ["/bin/sh", "-c", "rm -rf /dev/shm/*"]
-    ipc: host
-    volumes:
-      - /dev/shm:/dev/shm
-    deploy:
-      resources:
-        limits:
-          cpus: '0.01'
-          memory: '10MB'
-        reservations:
-          cpus: '0.01'
-          memory: '10MB'
-    restart: "no"
-    networks:
-      - backend
 
   lavinmq:
     image: cloudamqp/lavinmq:latest
@@ -104,8 +82,6 @@ services:
       timeout: 10s
       retries: 20
       start_period: 5s
-    depends_on:
-      - cleanup
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -148,16 +124,6 @@ services:
         reservations:
           cpus: '0.01'
           memory: '35MB'
-  
-  warmup:
-    image: curlimages/curl:latest
-    entrypoint: ["/bin/sh", "-c"]
-    command: |
-      curl --fail --max-time 5 http://nginx:9999/payments-summary || true
-    depends_on:
-      - nginx
-    networks:
-      - backend
 
 networks:
   backend:

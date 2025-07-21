@@ -3,14 +3,12 @@ require "json"
 require "./circuit_breaker_wrapper"
 require "./http_client"
 require "./payment_types"
-require "./sqlite_client"
 require "./skiplist_bindings"
 require "kemal"
 require "./json_generator_bindings"
 
 class Consumer
   @circuit_breaker : CircuitBreakerWrapper
-  @processed_payments : DB::Database
   @pubsub_client : PubSubClient
   property default_skiplist : Skiplist
   property fallback_skiplist : Skiplist
@@ -21,7 +19,6 @@ class Consumer
     process_client = HttpClient.new("default", @pubsub_client, ENV["PROCESSOR_URL"]? || "http://localhost:8001", 2000)
     fallback_client = HttpClient.new("fallback", @pubsub_client, ENV["FALLBACK_URL"]? || "http://localhost:8002", 5000)
     @circuit_breaker = CircuitBreakerWrapper.new(process_client, fallback_client)
-    @processed_payments = SqliteClient.instance.db
     @default_skiplist = Skiplist.new
     @fallback_skiplist = Skiplist.new
   end
@@ -69,7 +66,6 @@ consumer = Consumer.new
 hostname = ENV["HOSTNAME"]? || "consumer"
 socket_sub_folder = ENV.fetch("SOCKET_SUB_FOLDER", "/dev/shm")
 socket_path = "#{socket_sub_folder}/#{hostname}.sock"
-SqliteClient.instance.insert_consumer(socket_path)
 TO_CONSTANT = Time.parse_iso8601("3000-01-01T00:00:00Z").to_unix_ms.to_f
 FROM_CONSTANT = Time.parse_iso8601("1970-01-01T00:00:00Z").to_unix_ms.to_f
 
