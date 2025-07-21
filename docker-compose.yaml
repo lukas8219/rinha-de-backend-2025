@@ -90,7 +90,7 @@ services:
           cpus: '0.1'
           memory: '35MB'
         reservations:
-          cpus: '0.01'
+          cpus: '0.1'
           memory: '35MB'
 
   nginx: # Load Balancer
