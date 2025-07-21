@@ -94,8 +94,8 @@ get "/payments-summary" do |env|
   
     env.response.status_code = 200
     {
-      "default" => { "totalRequests" => stats_results["default"]["totalRequests"], "totalAmount" => (stats_results["default"]["totalAmount"] / 100.0).round.to_f },
-      "fallback" => { "totalRequests" => stats_results["fallback"]["totalRequests"], "totalAmount" => (stats_results["fallback"]["totalAmount"] / 100.0).round.to_f }
+      "default" => { "totalRequests" => stats_results["default"]["totalRequests"], "totalAmount" => (stats_results["default"]["totalAmount"] / 100.0) },
+      "fallback" => { "totalRequests" => stats_results["fallback"]["totalRequests"], "totalAmount" => (stats_results["fallback"]["totalAmount"] / 100.0) }
     }.to_json
   rescue ex
     env.response.status_code = 500
