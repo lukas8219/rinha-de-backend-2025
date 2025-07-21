@@ -93,7 +93,7 @@ if File.exists?(socket_path)
   File.delete(socket_path)
 end
 
-spawn do
+Fiber::ExecutionContext::Isolated.new("server") do
   Log.info { "Starting Kemal server" }
   Kemal.run do |config|
     config.server.not_nil!.bind_unix(socket_path)
@@ -101,7 +101,10 @@ spawn do
   end
 end
 
-consumer.run 
+Fiber::ExecutionContext::Isolated.new("consumer") do
+  consumer.run
+end
+   
 loop do
   sleep 1.seconds
 end

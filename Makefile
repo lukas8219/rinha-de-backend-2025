@@ -1,4 +1,4 @@
-CRYSTAL_BIN ?= crystal
+CRYSTAL_BIN ?= /Users/lucas.polesello/.asdf/installs/crystal/1.17.0/bin/crystal
 SHARDS_BIN ?= shards
 CC ?= gcc
 CFLAGS ?= -O2 -fPIC -Wall
@@ -40,7 +40,7 @@ dev-server: lib build-skiplist build-json-generator
 	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/server.cr
 
 dev-consumer: lib build-skiplist build-json-generator
-	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/consumer.cr 
+	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
 
 spec-skiplist: lib build-skiplist build-json-generator
 	$(CRYSTAL_BIN) spec src/skiplist_spec.cr
