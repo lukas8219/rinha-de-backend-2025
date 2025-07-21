@@ -96,14 +96,12 @@ end
 spawn do
   Log.info { "Starting Kemal server" }
   Kemal.run do |config|
-    # Enable SO_REUSEPORT for the unix socket
-    socket_addr = Socket::UNIXAddress.new(socket_path)
-    config.server.not_nil!.bind_unix(socket_addr)
+    config.server.not_nil!.bind_unix(socket_path)
     File.chmod(socket_path, 0o666)
   end
 end
 
 consumer.run 
 loop do
-  sleep 0.1.nanoseconds
+  sleep 1.seconds
 end
