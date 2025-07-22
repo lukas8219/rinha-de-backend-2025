@@ -43,9 +43,14 @@ Log.info { "GET /payment-summary - Get payment summary" }
 Log.info { "POST /payments - Create a new payment" }
 
 Kemal.run(port) do |config|
-  if ENV["SOCKET_PATH"]?
-    config.server.not_nil!.bind_unix(ENV["SOCKET_PATH"]?.not_nil!)
-    File.chmod(ENV["SOCKET_PATH"]?.not_nil!, 0o666)
+  socket_path = ENV["SOCKET_PATH"]?
+  if socket_path
+    if File.exists?(socket_path)
+      File.delete(socket_path)
+    end
+    config.server.not_nil!.bind_unix(socket_path)
+    File.chmod(socket_path, 0o666)
+    Log.info { "HTTP Server running on socket #{socket_path}" }
   else
     config.server.not_nil!.bind_tcp(port)
   end
