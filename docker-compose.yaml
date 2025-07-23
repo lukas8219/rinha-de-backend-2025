@@ -96,12 +96,12 @@ services:
   nginx: # Load Balancer
     ipc: host
     image: nginx:latest
-    healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "http://localhost:9999/payments-summary"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 1s
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "-s", "http://localhost:9999/payments-summary"]
+    #   interval: 10s
+    #   timeout: 3s
+    #   retries: 5
+    #   start_period: 1s
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
