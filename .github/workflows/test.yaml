@@ -39,13 +39,13 @@ jobs:
       - name: Wait for services to be healthy
         run: |
           # Wait for nginx to be up (adjust port if needed)
-          for i in {1..60}; do
-            if curl -s http://localhost:9999/ > /dev/null; then
+          for i in {1..15}; do
+            if curl -f -s http://localhost:9999/payments-summary > /dev/null; then
               echo "nginx is up!"
               break
             fi
             echo "Waiting for nginx..."
-            sleep 2
+            sleep 5
           done
 
       - uses: grafana/setup-k6-action@v1
