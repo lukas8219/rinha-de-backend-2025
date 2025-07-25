@@ -93,12 +93,14 @@ jobs:
           WORKER_IMAGE_TAG: "docker.io/lukas8219/rinha-de-backend-2025-worker:${{ github.event.inputs.tag }}"
         run: |
           echo "🔧 Creating modified docker-compose.yaml with provided image tags:"
-          echo "  App services will use: $APP_IMAGE"
+          echo "  App services will use: $APP_IMAGE_TAG"
+          echo "  Worker services will use: $WORKER_IMAGE_TAG"
           
           # Validate input parameters
-          if [[ -z "$APP_IMAGE" ]]; then
+          if [[ -z "$APP_IMAGE_TAG" || -z "$WORKER_IMAGE_TAG" ]]; then
             echo "❌ Error: Image tags are required!"
-            echo "APP_IMAGE: '$APP_IMAGE'"
+            echo "APP_IMAGE_TAG: '$APP_IMAGE_TAG'"
+            echo "WORKER_IMAGE_TAG: '$WORKER_IMAGE_TAG'"
             echo ""
             echo "Please provide both image tags when triggering this workflow."
             exit 1
