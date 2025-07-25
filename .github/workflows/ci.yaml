@@ -105,14 +105,18 @@ jobs:
 
       - name: Set image tag outputs
         id: set_outputs
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TAG: ${{ steps.gen_tag.outputs.tag }}
         run: |
           echo "🔍 Debug: Checking environment variables and step outputs..."
-          echo "REGISTRY: ${{ env.REGISTRY }}"
-          echo "IMAGE_NAME: ${{ env.IMAGE_NAME }}"
-          echo "Generated tag: ${{ steps.gen_tag.outputs.tag }}"
+          echo "REGISTRY: $REGISTRY"
+          echo "IMAGE_NAME: $IMAGE_NAME"
+          echo "Generated tag: $TAG"
           
-          APP_IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:${{ steps.gen_tag.outputs.tag }}"
-          WORKER_IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${{ steps.gen_tag.outputs.tag }}"
+          APP_IMAGE_TAG="$REGISTRY/$IMAGE_NAME-app:$TAG"
+          WORKER_IMAGE_TAG="$REGISTRY/$IMAGE_NAME-worker:$TAG"
           
           echo "🔍 Debug: Generated image tags before output..."
           echo "APP_IMAGE_TAG: $APP_IMAGE_TAG"
@@ -160,15 +164,11 @@ jobs:
 
 
       - name: Create modified docker-compose with image tags
+        env:
+          APP_IMAGE: ${{ needs.build-and-push.outputs.app-image-tag }}
+          WORKER_IMAGE: ${{ needs.build-and-push.outputs.worker-image-tag }}
         run: |
-          echo "🔍 Debug: Raw job outputs from build-and-push:"
-          echo "Raw app-image-tag: '${{ needs.build-and-push.outputs.app-image-tag }}'"
-          echo "Raw worker-image-tag: '${{ needs.build-and-push.outputs.worker-image-tag }}'"
-          
-          APP_IMAGE="${{ needs.build-and-push.outputs.app-image-tag }}"
-          WORKER_IMAGE="${{ needs.build-and-push.outputs.worker-image-tag }}"
-          
-          echo "🔍 Debug: Variables after assignment:"
+          echo "🔍 Debug: Job outputs received as environment variables:"
           echo "APP_IMAGE: '$APP_IMAGE'"
           echo "WORKER_IMAGE: '$WORKER_IMAGE'"
           
