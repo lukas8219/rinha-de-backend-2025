@@ -220,7 +220,7 @@ jobs:
           # Remove *.logs and *.json files from participantes/luucaspole-crystal/
           if [ -d "participantes/luucaspole-crystal" ]; then
             find participantes/luucaspole-crystal -name "*.logs" -type f -delete
-            find participantes/luucaspole-crystal -name "*.json" -type f -delete
+            find participantes/luucaspole-crystal -name "partial-results.json" -type f -delete
             echo "Removed *.logs and *.json files from participantes/luucaspole-crystal/"
           else
             echo "Directory participantes/luucaspole-crystal does not exist, creating it..."
