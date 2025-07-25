@@ -106,13 +106,22 @@ jobs:
       - name: Set image tag outputs
         id: set_outputs
         run: |
+          echo "🔍 Debug: Checking environment variables and step outputs..."
+          echo "REGISTRY: ${{ env.REGISTRY }}"
+          echo "IMAGE_NAME: ${{ env.IMAGE_NAME }}"
+          echo "Generated tag: ${{ steps.gen_tag.outputs.tag }}"
+          
           APP_IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:${{ steps.gen_tag.outputs.tag }}"
           WORKER_IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${{ steps.gen_tag.outputs.tag }}"
+          
+          echo "🔍 Debug: Generated image tags before output..."
+          echo "APP_IMAGE_TAG: $APP_IMAGE_TAG"
+          echo "WORKER_IMAGE_TAG: $WORKER_IMAGE_TAG"
           
           echo "app-image-tag=$APP_IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "worker-image-tag=$WORKER_IMAGE_TAG" >> $GITHUB_OUTPUT
           
-          echo "📦 Generated image tags:"
+          echo "📦 Final image tags written to output:"
           echo "  App image: $APP_IMAGE_TAG"
           echo "  Worker image: $WORKER_IMAGE_TAG"
 
@@ -152,8 +161,16 @@ jobs:
 
       - name: Create modified docker-compose with image tags
         run: |
+          echo "🔍 Debug: Raw job outputs from build-and-push:"
+          echo "Raw app-image-tag: '${{ needs.build-and-push.outputs.app-image-tag }}'"
+          echo "Raw worker-image-tag: '${{ needs.build-and-push.outputs.worker-image-tag }}'"
+          
           APP_IMAGE="${{ needs.build-and-push.outputs.app-image-tag }}"
           WORKER_IMAGE="${{ needs.build-and-push.outputs.worker-image-tag }}"
+          
+          echo "🔍 Debug: Variables after assignment:"
+          echo "APP_IMAGE: '$APP_IMAGE'"
+          echo "WORKER_IMAGE: '$WORKER_IMAGE'"
           
           echo "🔧 Creating modified docker-compose.yaml with image tags:"
           echo "  App services will use: $APP_IMAGE"
@@ -164,9 +181,15 @@ jobs:
             echo "❌ Error: Image tags are empty!"
             echo "APP_IMAGE: '$APP_IMAGE'"
             echo "WORKER_IMAGE: '$WORKER_IMAGE'"
-            echo "Available job outputs:"
-            echo "app-image-tag: ${{ needs.build-and-push.outputs.app-image-tag }}"
-            echo "worker-image-tag: ${{ needs.build-and-push.outputs.worker-image-tag }}"
+            echo "Length of APP_IMAGE: ${#APP_IMAGE}"
+            echo "Length of WORKER_IMAGE: ${#WORKER_IMAGE}"
+            
+            echo ""
+            echo "🔍 Checking job dependency and outputs..."
+            echo "Job needs: [validate-ssh-key, build-and-push]"
+            echo "build-and-push job should have these outputs:"
+            echo "  - app-image-tag"
+            echo "  - worker-image-tag"
             exit 1
           fi
           
