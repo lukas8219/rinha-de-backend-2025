@@ -158,7 +158,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update submission: remove logs/json files and update docker-compose.yaml
+            git commit -m "chore(participantes/luucaspole-crystal): retest + use latest configuration and version
             
             - Removed *.logs and *.json files from participantes/luucaspole-crystal/
             - Updated docker-compose.yaml with latest version
@@ -179,14 +179,10 @@ jobs:
               const response = await github.rest.pulls.create({
                 owner: 'zanfranceschi',
                 repo: 'rinha-de-backend-2025',
-                title: 'Automated submission update from luucaspole-crystal',
+                title: 'chore(participantes/luucaspole-crystal): retest + use latest configuration and version',
                 head: 'lukas8219:${{ env.BRANCH_NAME }}',
                 base: 'main'
               });
-              
-              console.log(\`Pull request created: #\${response.data.number}\`);
-              console.log(\`PR URL: \${response.data.html_url}\`);
-              
             } catch (error) {
               if (error.message.includes('A pull request already exists')) {
                 console.log('A pull request already exists for this branch');
