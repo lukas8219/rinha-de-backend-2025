@@ -63,9 +63,7 @@ end
 # Start the consumer
 consumer = Consumer.new
 
-hostname = ENV["HOSTNAME"]? || "consumer"
-socket_sub_folder = ENV.fetch("SOCKET_SUB_FOLDER", "/dev/shm")
-socket_path = "#{socket_sub_folder}/#{hostname}.sock"
+socket_path = ENV.fetch("SOCKET_PATH", "/dev/shm/consumer.sock")
 TO_CONSTANT = Time.parse_iso8601("3000-01-01T00:00:00Z").to_unix_ms.to_f
 FROM_CONSTANT = Time.parse_iso8601("1970-01-01T00:00:00Z").to_unix_ms.to_f
 

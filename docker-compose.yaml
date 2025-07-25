@@ -17,13 +17,14 @@ services:
     restart: unless-stopped
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app1.sock"
+      SOCKET_PATH: "/shared/sockets/app1.sock"
+    volumes:
+      - unix_sockets:/shared/sockets
     networks:
       - backend
       - payment-processor
     expose:
       - "3000"
-    ipc: host
     depends_on:
       lavinmq:
         condition: service_healthy
@@ -43,7 +44,9 @@ services:
     <<: *app
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app2.sock"
+      SOCKET_PATH: "/shared/sockets/app2.sock"
+    volumes:
+      - unix_sockets:/shared/sockets
     hostname: app2
     depends_on:
       lavinmq:
@@ -54,14 +57,19 @@ services:
   consumer: &consumer
     <<: *app
     hostname: "1"
+    environment:
+      <<: *x-enviromments
+      SOCKET_PATH: "/shared/sockets/1.sock"
+    volumes:
+      - unix_sockets:/shared/sockets
     cpu_shares: 3072
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: '0.9'
           memory: '150MB'
         reservations:
-          cpus: '1'
+          cpus: '0.9'
           memory: '150MB'
     build:
       context: .
@@ -94,10 +102,10 @@ services:
           memory: '35MB'
 
   nginx: # Load Balancer
-    ipc: host
     image: nginx:latest
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - unix_sockets:/shared/sockets
     depends_on:
       - app1
       - app2
@@ -121,6 +129,12 @@ services:
         reservations:
           cpus: '0.1'
           memory: '35MB'
+
+
+
+volumes:
+  unix_sockets:
+    driver: local
 
 networks:
   backend:
