@@ -65,7 +65,7 @@ jobs:
       - name: Checkout fork repository
         uses: actions/checkout@v3
         with:
-          repository: lukas8219/rinha-de-backend-2025
+          repository: lukas8219/rinha-de-backend-2026
           token: ${{ secrets.GITHUB_TOKEN }}
           path: fork-repo
 
