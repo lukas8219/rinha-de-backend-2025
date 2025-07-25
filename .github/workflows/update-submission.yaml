@@ -1,0 +1,235 @@
+name: Update Submission
+
+on:
+  workflow_dispatch:
+    inputs:
+      app-image-tag:
+        description: 'App image tag (e.g., docker.io/lukas8219/rinha-de-backend-2025-app:main-abc123def-1642089234)'
+        required: true
+        type: string
+      worker-image-tag:
+        description: 'Worker image tag (e.g., docker.io/lukas8219/rinha-de-backend-2025-worker:main-abc123def-1642089234)'
+        required: true
+        type: string
+      source-sha:
+        description: 'Source commit SHA (optional, for traceability)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  validate-ssh-key:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Test SSH connection to GitHub
+        run: |
+          echo "🔑 Testing SSH connection to GitHub..."
+          
+          # Test basic GitHub SSH connection
+          SSH_OUTPUT=$(ssh -T git@github.com 2>&1 || true)
+          echo "SSH Output: $SSH_OUTPUT"
+          
+          # Check if authentication was successful
+          if echo "$SSH_OUTPUT" | grep -q "successfully authenticated"; then
+            echo "✅ SSH key is valid for GitHub"
+            
+            # Extract username from the output
+            USERNAME=$(echo "$SSH_OUTPUT" | grep "successfully authenticated" | sed 's/.*Hi \([^!]*\)!.*/\1/')
+            echo "🎉 Authenticated as: $USERNAME"
+          else
+            echo "❌ SSH key validation failed"
+            echo "Expected to see 'successfully authenticated' in the output"
+            echo "Actual output: $SSH_OUTPUT"
+            exit 1
+          fi
+          
+          echo "🔍 Testing access to fork repository..."
+          # Test if we can access the specific repository
+          git ls-remote git@github.com:lukas8219/rinha-de-backend-2026.git HEAD > /dev/null 2>&1 && {
+            echo "✅ Successfully accessed fork repository"
+          } || {
+            echo "❌ Cannot access fork repository - check if SSH key has proper permissions"
+            exit 1
+          }
+
+  update-fork:
+    runs-on: ubuntu-latest
+    needs: validate-ssh-key
+    
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v3
+
+      - name: Checkout fork repository
+        uses: actions/checkout@v3
+        with:
+          repository: lukas8219/rinha-de-backend-2026
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          path: fork-repo
+
+      - name: Generate branch name
+        id: gen_branch
+        run: |
+          BRANCH_NAME="automate-pr-$(date +%Y%m%d-%H%M%S)"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Configure git
+        run: |
+          cd fork-repo
+          git config user.name "GitHub Actions[lukas8219]"
+          git config user.email "lukas8219@gmail.com"
+
+      - name: Create and checkout new branch
+        run: |
+          cd fork-repo
+          git checkout -b ${{ env.BRANCH_NAME }}
+
+      - name: Create modified docker-compose with image tags
+        env:
+          APP_IMAGE: ${{ github.event.inputs.app-image-tag }}
+          WORKER_IMAGE: ${{ github.event.inputs.worker-image-tag }}
+        run: |
+          echo "🔧 Creating modified docker-compose.yaml with provided image tags:"
+          echo "  App services will use: $APP_IMAGE"
+          echo "  Worker service will use: $WORKER_IMAGE"
+          
+          # Validate input parameters
+          if [[ -z "$APP_IMAGE" ]] || [[ -z "$WORKER_IMAGE" ]]; then
+            echo "❌ Error: Image tags are required!"
+            echo "APP_IMAGE: '$APP_IMAGE'"
+            echo "WORKER_IMAGE: '$WORKER_IMAGE'"
+            echo ""
+            echo "Please provide both image tags when triggering this workflow."
+            exit 1
+          fi
+          
+          # Install yq if not available
+          if ! command -v yq &> /dev/null; then
+            echo "📦 Installing yq..."
+            sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+          
+          # Copy original file
+          cp docker-compose.yaml docker-compose-modified.yaml
+          
+          # Remove build sections and add image tags using yq
+          echo "🔧 Modifying docker-compose.yaml with yq..."
+          
+          # For app1 service (base app definition) - remove build and add image
+          yq eval 'del(.services.app1.build)' -i docker-compose-modified.yaml
+          yq eval '.services.app1.image = strenv(APP_IMAGE)' -i docker-compose-modified.yaml
+          
+          # For consumer service - remove build and add image
+          yq eval 'del(.services.consumer.build)' -i docker-compose-modified.yaml
+          yq eval '.services.consumer.image = strenv(WORKER_IMAGE)' -i docker-compose-modified.yaml
+          
+          # Fix any !!merge syntax issues (yq sometimes outputs this incorrectly)
+          sed -i 's/!!merge <</<</' docker-compose-modified.yaml
+          
+          echo "✅ Modified docker-compose.yaml created"
+          
+          # Show a preview of the changes made
+          echo ""
+          echo "📋 Preview of modified services:"
+          echo "--- app1 service image ---"
+          yq eval '.services.app1.image' docker-compose-modified.yaml
+          echo "--- consumer service image ---"  
+          yq eval '.services.consumer.image' docker-compose-modified.yaml
+          
+          # Validate YAML syntax
+          echo ""
+          echo "🔍 Validating YAML syntax..."
+          if yq eval '.' docker-compose-modified.yaml > /dev/null; then
+            echo "✅ YAML syntax is valid"
+          else
+            echo "❌ YAML syntax is invalid"
+            exit 1
+          fi
+
+      - name: Clean up files and update docker-compose
+        run: |
+          cd fork-repo
+          # Remove *.logs and *.json files from participantes/luucaspole-crystal/
+          if [ -d "participantes/luucaspole-crystal" ]; then
+            find participantes/luucaspole-crystal -name "*.logs" -type f -delete
+            find participantes/luucaspole-crystal -name "partial-results.json" -type f -delete
+            echo "Removed *.logs and *.json files from participantes/luucaspole-crystal/"
+          else
+            echo "Directory participantes/luucaspole-crystal does not exist, creating it..."
+            mkdir -p participantes/luucaspole-crystal
+          fi
+          
+          # Copy modified docker-compose.yaml and nginx.conf from current repo to fork
+          cp ../docker-compose-modified.yaml participantes/luucaspole-crystal/docker-compose.yaml
+          cp ../nginx.conf participantes/luucaspole-crystal/nginx.conf
+          echo "Updated docker-compose.yaml with production image tags in participantes/luucaspole-crystal/"
+
+      - name: Commit and push changes
+        env:
+          APP_IMAGE: ${{ github.event.inputs.app-image-tag }}
+          WORKER_IMAGE: ${{ github.event.inputs.worker-image-tag }}
+          SOURCE_SHA: ${{ github.event.inputs.source-sha }}
+        run: |
+          cd fork-repo
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            # Build commit message
+            COMMIT_MSG="chore(participantes/luucaspole-crystal): update submission with latest configuration
+            
+            - Removed *.logs and *.json files from participantes/luucaspole-crystal/
+            - Updated docker-compose.yaml with production image tags
+            - App image: $APP_IMAGE
+            - Worker image: $WORKER_IMAGE
+            - Updated nginx.conf with latest version"
+            
+            # Add source SHA if provided
+            if [[ -n "$SOURCE_SHA" ]]; then
+              COMMIT_MSG="$COMMIT_MSG
+            - Source SHA: $SOURCE_SHA"
+            fi
+            
+            COMMIT_MSG="$COMMIT_MSG
+            - Triggered manually via workflow_dispatch"
+            
+            git commit -m "$COMMIT_MSG"
+            
+            git push origin ${{ env.BRANCH_NAME }}
+            echo "Changes pushed to branch: ${{ env.BRANCH_NAME }}"
+          fi
+
+      - name: Create Pull Request
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const response = await github.rest.pulls.create({
+                owner: 'zanfranceschi',
+                repo: 'rinha-de-backend-2025',
+                title: 'Automated submission update from luucaspole-crystal',
+                head: 'lukas8219:${{ env.BRANCH_NAME }}',
+                base: 'main'
+              });
+              
+              console.log(\`Pull request created: #\${response.data.number}\`);
+              console.log(\`PR URL: \${response.data.html_url}\`);
+              
+            } catch (error) {
+              if (error.message.includes('A pull request already exists')) {
+                console.log('A pull request already exists for this branch');
+              } else {
+                console.error('Error creating pull request:', error);
+                throw error;
+              }
+            } 
