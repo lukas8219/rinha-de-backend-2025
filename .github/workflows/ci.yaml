@@ -159,6 +159,17 @@ jobs:
           echo "  App services will use: $APP_IMAGE"
           echo "  Worker service will use: $WORKER_IMAGE"
           
+          # Debug: Check if image tags are properly received
+          if [[ -z "$APP_IMAGE" ]] || [[ -z "$WORKER_IMAGE" ]]; then
+            echo "❌ Error: Image tags are empty!"
+            echo "APP_IMAGE: '$APP_IMAGE'"
+            echo "WORKER_IMAGE: '$WORKER_IMAGE'"
+            echo "Available job outputs:"
+            echo "app-image-tag: ${{ needs.build-and-push.outputs.app-image-tag }}"
+            echo "worker-image-tag: ${{ needs.build-and-push.outputs.worker-image-tag }}"
+            exit 1
+          fi
+          
           # Install yq if not available
           if ! command -v yq &> /dev/null; then
             echo "📦 Installing yq..."
@@ -172,23 +183,36 @@ jobs:
           # Remove build sections and add image tags using yq
           echo "🔧 Modifying docker-compose.yaml with yq..."
           
-          # For app1 service (base app definition)
+          # For app1 service (base app definition) - remove build and add image
           yq eval 'del(.services.app1.build)' -i docker-compose-modified.yaml
-          yq eval ".services.app1.image = \"$APP_IMAGE\"" -i docker-compose-modified.yaml
+          yq eval '.services.app1.image = strenv(APP_IMAGE)' -i docker-compose-modified.yaml
           
-          # For consumer service 
+          # For consumer service - remove build and add image
           yq eval 'del(.services.consumer.build)' -i docker-compose-modified.yaml
-          yq eval ".services.consumer.image = \"$WORKER_IMAGE\"" -i docker-compose-modified.yaml
+          yq eval '.services.consumer.image = strenv(WORKER_IMAGE)' -i docker-compose-modified.yaml
+          
+          # Fix any !!merge syntax issues (yq sometimes outputs this incorrectly)
+          sed -i 's/!!merge <</<</' docker-compose-modified.yaml
           
           echo "✅ Modified docker-compose.yaml created"
           
           # Show a preview of the changes made
           echo ""
           echo "📋 Preview of modified services:"
-          echo "--- app1 service ---"
-          yq eval '.services.app1 | {"image": .image}' docker-compose-modified.yaml
-          echo "--- consumer service ---"  
-          yq eval '.services.consumer | {"image": .image}' docker-compose-modified.yaml
+          echo "--- app1 service image ---"
+          yq eval '.services.app1.image' docker-compose-modified.yaml
+          echo "--- consumer service image ---"  
+          yq eval '.services.consumer.image' docker-compose-modified.yaml
+          
+          # Validate YAML syntax
+          echo ""
+          echo "🔍 Validating YAML syntax..."
+          if yq eval '.' docker-compose-modified.yaml > /dev/null; then
+            echo "✅ YAML syntax is valid"
+          else
+            echo "❌ YAML syntax is invalid"
+            exit 1
+          fi
 
       - name: Clean up files and update docker-compose
         run: |
