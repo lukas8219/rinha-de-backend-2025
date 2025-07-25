@@ -9,7 +9,7 @@ x-enviromments: &x-enviromments
 version: '3.4'
 services:
   app1: &app
-    # image: lukas8219/rinha-be-2023-q3:latest
+    image: docker.io/lukas8219/rinha-de-backend-2025-app:latest
     user: "1001:1001"
     build:
       context: .
