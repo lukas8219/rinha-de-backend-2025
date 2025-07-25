@@ -116,8 +116,37 @@ jobs:
             
             - Removed *.logs and *.json files from participantes/luucaspole-crystal/
             - Updated docker-compose.yaml with latest version
+            - Updated nginx.conf with latest version
             - Generated from SHA: ${{ github.sha }}"
             
             git push origin ${{ env.BRANCH_NAME }}
             echo "Changes pushed to branch: ${{ env.BRANCH_NAME }}"
           fi
+
+      - name: Create Pull Request
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const response = await github.rest.pulls.create({
+                owner: 'zanfranceschi',
+                repo: 'rinha-de-backend-2025',
+                title: 'Automated submission update from luucaspole-crystal',
+                head: 'lukas8219:${{ env.BRANCH_NAME }}',
+                base: 'main'
+              });
+              
+              console.log(\`Pull request created: #\${response.data.number}\`);
+              console.log(\`PR URL: \${response.data.html_url}\`);
+              
+            } catch (error) {
+              if (error.message.includes('A pull request already exists')) {
+                console.log('A pull request already exists for this branch');
+              } else {
+                console.error('Error creating pull request:', error);
+                throw error;
+              }
+            }
+
