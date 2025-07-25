@@ -3,12 +3,8 @@ name: Update Submission
 on:
   workflow_dispatch:
     inputs:
-      app-image-tag:
-        description: 'App image tag (e.g., docker.io/lukas8219/rinha-de-backend-2025-app:main-abc123def-1642089234)'
-        required: true
-        type: string
-      worker-image-tag:
-        description: 'Worker image tag (e.g., docker.io/lukas8219/rinha-de-backend-2025-worker:main-abc123def-1642089234)'
+      tag:
+        description: 'Image tag (e.g., main-abc123def-1642089234)'
         required: true
         type: string
       source-sha:
@@ -93,18 +89,15 @@ jobs:
 
       - name: Create modified docker-compose with image tags
         env:
-          APP_IMAGE: ${{ github.event.inputs.app-image-tag }}
-          WORKER_IMAGE: ${{ github.event.inputs.worker-image-tag }}
+          APP_IMAGE: ${{ github.event.inputs.tag }}
         run: |
           echo "🔧 Creating modified docker-compose.yaml with provided image tags:"
           echo "  App services will use: $APP_IMAGE"
-          echo "  Worker service will use: $WORKER_IMAGE"
           
           # Validate input parameters
-          if [[ -z "$APP_IMAGE" ]] || [[ -z "$WORKER_IMAGE" ]]; then
+          if [[ -z "$APP_IMAGE" ]]; then
             echo "❌ Error: Image tags are required!"
             echo "APP_IMAGE: '$APP_IMAGE'"
-            echo "WORKER_IMAGE: '$WORKER_IMAGE'"
             echo ""
             echo "Please provide both image tags when triggering this workflow."
             exit 1
@@ -125,11 +118,11 @@ jobs:
           
           # For app1 service (base app definition) - remove build and add image
           yq eval 'del(.services.app1.build)' -i docker-compose-modified.yaml
-          yq eval '.services.app1.image = strenv(APP_IMAGE)' -i docker-compose-modified.yaml
+          yq eval '.services.app1.image = strenv(docker.io/lukas8219/rinha-de-backend-2025-app:$APP_IMAGE)' -i docker-compose-modified.yaml
           
           # For consumer service - remove build and add image
           yq eval 'del(.services.consumer.build)' -i docker-compose-modified.yaml
-          yq eval '.services.consumer.image = strenv(WORKER_IMAGE)' -i docker-compose-modified.yaml
+          yq eval '.services.consumer.image = strenv(docker.io/lukas8219/rinha-de-backend-2025-worker:$APP_IMAGE)' -i docker-compose-modified.yaml
           
           # Fix any !!merge syntax issues (yq sometimes outputs this incorrectly)
           sed -i 's/!!merge <</<</' docker-compose-modified.yaml
@@ -206,30 +199,3 @@ jobs:
             git push origin ${{ env.BRANCH_NAME }}
             echo "Changes pushed to branch: ${{ env.BRANCH_NAME }}"
           fi
-
-      - name: Create Pull Request
-        if: success()
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            try {
-              const response = await github.rest.pulls.create({
-                owner: 'zanfranceschi',
-                repo: 'rinha-de-backend-2025',
-                title: 'Automated submission update from luucaspole-crystal',
-                head: 'lukas8219:${{ env.BRANCH_NAME }}',
-                base: 'main'
-              });
-              
-              console.log(\`Pull request created: #\${response.data.number}\`);
-              console.log(\`PR URL: \${response.data.html_url}\`);
-              
-            } catch (error) {
-              if (error.message.includes('A pull request already exists')) {
-                console.log('A pull request already exists for this branch');
-              } else {
-                console.error('Error creating pull request:', error);
-                throw error;
-              }
-            } 

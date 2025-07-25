@@ -2,6 +2,14 @@ name: CI
 
 on:
   push:
+    paths:
+      - '**.cr'
+      - 'shard.lock'
+      - 'shard.yml'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '!**/*.md'
+      - '!**/*.yaml'
     branches:
       - main
 env:
