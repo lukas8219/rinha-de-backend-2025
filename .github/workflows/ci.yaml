@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+  issues: write
+
 env:
   REGISTRY: docker.io
   IMAGE_NAME: lukas8219/rinha-de-backend-2025
@@ -79,8 +85,9 @@ jobs:
       - name: Configure git
         run: |
           cd fork-repo
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions[lukas8219]"
+          git config user.email "lukas8219@gmail.com"
+          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/lukas8219/rinha-de-backend-2026.git
 
       - name: Create and checkout new branch
         run: |
