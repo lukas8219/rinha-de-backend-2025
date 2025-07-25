@@ -91,7 +91,7 @@ Fiber::ExecutionContext::Isolated.new("server") do
   Log.info { "Starting Kemal server" }
   Kemal.run do |config|
     config.server.not_nil!.bind_unix(socket_path)
-    # File.chmod(socket_path, 0o777)
+    File.chmod(socket_path, 0o666)
   end
 end
 
