@@ -68,15 +68,12 @@ jobs:
       - name: Checkout current repository
         uses: actions/checkout@v3
 
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.1
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
       - name: Checkout fork repository
-        run: |
-          # Clone using SSH
-          git clone git@github.com:lukas8219/rinha-de-backend-2026.git fork-repo
+        uses: actions/checkout@v3
+        with:
+          repository: lukas8219/rinha-de-backend-2026
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          path: fork-repo
 
       - name: Generate branch name
         id: gen_branch
