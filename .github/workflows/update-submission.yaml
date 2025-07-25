@@ -77,6 +77,8 @@ jobs:
           cd fork-repo
           git checkout -b ${{ env.BRANCH_NAME }}
 
+          
+
       - name: Clean up files and update configuration
         run: |
           cd fork-repo
@@ -94,6 +96,35 @@ jobs:
           cp ../docker-compose.yaml participantes/luucaspole-crystal/docker-compose.yaml
           cp ../nginx.conf participantes/luucaspole-crystal/nginx.conf
           echo "📝 Updated docker-compose.yaml and nginx.conf in participantes/luucaspole-crystal/"
+
+      - name: Remove build sections from docker-compose
+        run: |
+          cd fork-repo/participantes/luucaspole-crystal
+          
+          # Install yq if not available
+          if ! command -v yq &> /dev/null; then
+            echo "📦 Installing yq..."
+            sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+          
+          echo "🔧 Removing build sections from docker-compose.yaml..."
+          
+          # Remove all build sections from services
+          # Method 1: Target specific known services (more reliable)
+          yq eval 'del(.services.app1.build, .services.consumer.build)' -i docker-compose.yaml
+          
+          # Method 2: If the above doesn't catch all services, try recursive approach
+          # yq eval 'del(.services | .. | select(has("build")).build)' -i docker-compose.yaml
+          
+          # Fix any !!merge syntax issues (yq sometimes outputs this incorrectly)
+          sed -i 's/!!merge <</<</' docker-compose.yaml
+          
+          echo "✅ Build sections removed from docker-compose.yaml"
+          
+          # Show what services are defined (for verification)
+          echo "📋 Services in docker-compose.yaml:"
+          yq eval '.services | keys' docker-compose.yaml
 
       - name: Commit and push changes
         run: |
