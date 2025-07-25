@@ -49,7 +49,7 @@ Kemal.run(port) do |config|
       File.delete(socket_path)
     end
     config.server.not_nil!.bind_unix(socket_path)
-    File.chmod(socket_path, 0o777)
+    # File.chmod(socket_path, 0o777)
     Log.info { "HTTP Server running on socket #{socket_path}" }
   else
     config.server.not_nil!.bind_tcp(port)

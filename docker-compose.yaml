@@ -17,13 +17,14 @@ services:
     restart: unless-stopped
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app1.sock"
+      SOCKET_PATH: "/shared/sockets/app1.sock"
+    volumes:
+      - unix_sockets:/shared/sockets
     networks:
       - backend
       - payment-processor
     expose:
       - "3000"
-    ipc: host
     depends_on:
       lavinmq:
         condition: service_healthy
@@ -43,7 +44,9 @@ services:
     <<: *app
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app2.sock"
+      SOCKET_PATH: "/shared/sockets/app2.sock"
+    volumes:
+      - unix_sockets:/shared/sockets
     hostname: app2
     depends_on:
       lavinmq:
@@ -56,7 +59,9 @@ services:
     hostname: "1"
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/1.sock"
+      SOCKET_PATH: "/shared/sockets/1.sock"
+    volumes:
+      - unix_sockets:/shared/sockets
     cpu_shares: 3072
     deploy:
       resources:
@@ -96,32 +101,11 @@ services:
           cpus: '0.1'
           memory: '35MB'
 
-  shm-echo:
-    image: alpine:latest
-    command: ["sh", "-c", "ls -l /dev/shm && echo 'Contents of /dev/shm listed above.'"]
-    restart: no
-    ipc: host
-    depends_on:
-      - app1
-      - app2
-      - consumer
-    networks:
-      - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '0.1'
-          memory: '35MB'
-        reservations:
-          cpus: '0.1'
-          memory: '35MB'
-
-
   nginx: # Load Balancer
-    ipc: host
     image: nginx:latest
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - unix_sockets:/shared/sockets
     depends_on:
       - app1
       - app2
@@ -145,6 +129,12 @@ services:
         reservations:
           cpus: '0.1'
           memory: '35MB'
+
+
+
+volumes:
+  unix_sockets:
+    driver: local
 
 networks:
   backend:
