@@ -90,9 +90,11 @@ jobs:
           echo "  Worker image: $WORKER_IMAGE_TAG"
           
           echo ""
-          echo "💡 To update your submission with these images, use the 'Update Submission' workflow:"
+          echo "💡 Docker images built and pushed successfully!"
+          echo "   App image: $APP_IMAGE_TAG"
+          echo "   Worker image: $WORKER_IMAGE_TAG"
+          echo ""
+          echo "🚀 To update your submission, use the 'Update Submission' workflow:"
           echo "   Go to Actions → Update Submission → Run workflow"
-          echo "   Use these image tags as inputs:"
-          echo "   - App image tag: $APP_IMAGE_TAG"
-          echo "   - Worker image tag: $WORKER_IMAGE_TAG"
+          echo "   This will update the fork with latest docker-compose.yaml and nginx.conf"
 

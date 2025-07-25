@@ -2,16 +2,6 @@ name: Update Submission
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Image tag (e.g., main-abc123def-1642089234)'
-        required: true
-        type: string
-      source-sha:
-        description: 'Source commit SHA (optional, for traceability)'
-        required: false
-        type: string
-        default: ''
 
 jobs:
   validate-ssh-key:
@@ -87,132 +77,39 @@ jobs:
           cd fork-repo
           git checkout -b ${{ env.BRANCH_NAME }}
 
-      - name: Create modified docker-compose with image tags
-        env:
-          APP_IMAGE_TAG: "docker.io/lukas8219/rinha-de-backend-2025-app:${{ github.event.inputs.tag }}"
-          WORKER_IMAGE_TAG: "docker.io/lukas8219/rinha-de-backend-2025-worker:${{ github.event.inputs.tag }}"
-        run: |
-          echo "🔧 Creating modified docker-compose.yaml with provided image tags:"
-          echo "  App services will use: $APP_IMAGE_TAG"
-          echo "  Worker services will use: $WORKER_IMAGE_TAG"
-          
-          # Validate input parameters
-          if [[ -z "$APP_IMAGE_TAG" || -z "$WORKER_IMAGE_TAG" ]]; then
-            echo "❌ Error: Image tags are required!"
-            echo "APP_IMAGE_TAG: '$APP_IMAGE_TAG'"
-            echo "WORKER_IMAGE_TAG: '$WORKER_IMAGE_TAG'"
-            echo ""
-            echo "Please provide both image tags when triggering this workflow."
-            exit 1
-          fi
-          
-          # Install yq if not available
-          if ! command -v yq &> /dev/null; then
-            echo "📦 Installing yq..."
-            sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-            sudo chmod +x /usr/local/bin/yq
-          fi
-          
-          # Copy original file
-          cp docker-compose.yaml docker-compose-modified.yaml
-          
-          # Remove build sections and add image tags using yq
-          echo "🔧 Modifying docker-compose.yaml with yq..."
-          
-          # For app1 service (base app definition) - remove build and add image
-          yq eval 'del(.services.app1.build)' -i docker-compose-modified.yaml
-          yq eval ".services.app1.image = strenv(APP_IMAGE_TAG)" -i docker-compose-modified.yaml
-          
-          # For consumer service - remove build and add image
-          yq eval 'del(.services.consumer.build)' -i docker-compose-modified.yaml
-          yq eval ".services.consumer.image = strenv(WORKER_IMAGE_TAG)" -i docker-compose-modified.yaml
-          
-          # Fix any !!merge syntax issues (yq sometimes outputs this incorrectly)
-          sed -i 's/!!merge <</<</' docker-compose-modified.yaml
-          
-          echo "✅ Modified docker-compose.yaml created"
-          
-          # Show a preview of the changes made
-          echo ""
-          echo "📋 Preview of modified services:"
-          echo "--- app1 service image ---"
-          APP1_IMAGE=$(yq eval '.services.app1.image' docker-compose-modified.yaml)
-          echo "--- app1 service image ---"
-          if [[ -z "$APP1_IMAGE" || "$APP1_IMAGE" == "null" ]]; then
-            echo "❌ Error: app1 service image is empty!"
-            exit 1
-          else
-            echo "$APP1_IMAGE"
-          fi
-
-          echo "--- consumer service image ---"
-          CONSUMER_IMAGE=$(yq eval '.services.consumer.image' docker-compose-modified.yaml)
-          if [[ -z "$CONSUMER_IMAGE" || "$CONSUMER_IMAGE" == "null" ]]; then
-            echo "❌ Error: consumer service image is empty!"
-            exit 1
-          else
-            echo "$CONSUMER_IMAGE"
-          fi
-          
-          # Validate YAML syntax
-          echo ""
-          echo "🔍 Validating YAML syntax..."
-          if yq eval '.' docker-compose-modified.yaml > /dev/null; then
-            echo "✅ YAML syntax is valid"
-          else
-            echo "❌ YAML syntax is invalid"
-            exit 1
-          fi
-
-      - name: Clean up files and update docker-compose
+      - name: Clean up files and update configuration
         run: |
           cd fork-repo
           # Remove *.logs and *.json files from participantes/luucaspole-crystal/
           if [ -d "participantes/luucaspole-crystal" ]; then
             find participantes/luucaspole-crystal -name "*.logs" -type f -delete
             find participantes/luucaspole-crystal -name "partial-results.json" -type f -delete
-            echo "Removed *.logs and *.json files from participantes/luucaspole-crystal/"
+            echo "🧹 Removed *.logs and partial-results.json files from participantes/luucaspole-crystal/"
           else
-            echo "Directory participantes/luucaspole-crystal does not exist, creating it..."
+            echo "📁 Directory participantes/luucaspole-crystal does not exist, creating it..."
             mkdir -p participantes/luucaspole-crystal
           fi
           
-          # Copy modified docker-compose.yaml and nginx.conf from current repo to fork
-          cp ../docker-compose-modified.yaml participantes/luucaspole-crystal/docker-compose.yaml
+          # Copy current docker-compose.yaml and nginx.conf from current repo to fork
+          cp ../docker-compose.yaml participantes/luucaspole-crystal/docker-compose.yaml
           cp ../nginx.conf participantes/luucaspole-crystal/nginx.conf
-          echo "Updated docker-compose.yaml with production image tags in participantes/luucaspole-crystal/"
+          echo "📝 Updated docker-compose.yaml and nginx.conf in participantes/luucaspole-crystal/"
 
       - name: Commit and push changes
-        env:
-          APP_IMAGE: ${{ github.event.inputs.app-image-tag }}
-          WORKER_IMAGE: ${{ github.event.inputs.worker-image-tag }}
-          SOURCE_SHA: ${{ github.event.inputs.source-sha }}
         run: |
           cd fork-repo
           git add -A
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "ℹ️  No changes to commit"
           else
-            # Build commit message
-            COMMIT_MSG="chore(participantes/luucaspole-crystal): update submission with latest configuration
+            git commit -m "chore(participantes/luucaspole-crystal): update submission with latest configuration
             
-            - Removed *.logs and *.json files from participantes/luucaspole-crystal/
-            - Updated docker-compose.yaml with production image tags
-            - App image: $APP_IMAGE
-            - Worker image: $WORKER_IMAGE
-            - Updated nginx.conf with latest version"
-            
-            # Add source SHA if provided
-            if [[ -n "$SOURCE_SHA" ]]; then
-              COMMIT_MSG="$COMMIT_MSG
-            - Source SHA: $SOURCE_SHA"
-            fi
-            
-            COMMIT_MSG="$COMMIT_MSG
+            - Removed *.logs and partial-results.json files from participantes/luucaspole-crystal/
+            - Updated docker-compose.yaml with latest version
+            - Updated nginx.conf with latest version
+            - Source SHA: ${{ github.sha }}
             - Triggered manually via workflow_dispatch"
             
-            git commit -m "$COMMIT_MSG"
-            
             git push origin ${{ env.BRANCH_NAME }}
-            echo "Changes pushed to branch: ${{ env.BRANCH_NAME }}"
+            echo "✅ Changes pushed to branch: ${{ env.BRANCH_NAME }}"
           fi

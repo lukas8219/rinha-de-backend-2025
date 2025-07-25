@@ -9,7 +9,7 @@ x-enviromments: &x-enviromments
 version: '3.4'
 services:
   app1: &app
-    # image: lukas8219/rinha-be-2023-q3:latest
+    image: docker.io/lukas8219/rinha-de-backend-2025-app:latest
     build:
       context: .
       target: app
@@ -71,6 +71,7 @@ services:
         reservations:
           cpus: '0.9'
           memory: '150MB'
+    image: docker.io/lukas8219/rinha-de-backend-2025-worker:latest
     build:
       context: .
       target: worker
