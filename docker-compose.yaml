@@ -39,7 +39,7 @@ services:
       resources:
         limits:
           cpus: '0.20'
-          memory: '50MB'
+          memory: '40MB'
   app2:
     <<: *app
     user: "1001:1001"
@@ -132,10 +132,10 @@ services:
       resources:
         limits:
           cpus: '0.1'
-          memory: '35MB'
+          memory: '55MB'
         reservations:
           cpus: '0.1'
-          memory: '35MB'
+          memory: '55MB'
 
 volumes:
   nginx_cache:
