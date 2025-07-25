@@ -27,12 +27,32 @@ jobs:
 
       - name: Test SSH connection to GitHub
         run: |
-          echo "Testing SSH connection to GitHub..."
-          ssh -T git@github.com || true
+          echo "🔑 Testing SSH connection to GitHub..."
           
-          echo "Testing SSH connection to fork repository..."
-          ssh -T git@github.com 2>&1 | grep -q "successfully authenticated" && echo "✅ SSH key is valid for GitHub" || {
+          # Test basic GitHub SSH connection
+          SSH_OUTPUT=$(ssh -T git@github.com 2>&1 || true)
+          echo "SSH Output: $SSH_OUTPUT"
+          
+          # Check if authentication was successful
+          if echo "$SSH_OUTPUT" | grep -q "successfully authenticated"; then
+            echo "✅ SSH key is valid for GitHub"
+            
+            # Extract username from the output
+            USERNAME=$(echo "$SSH_OUTPUT" | grep "successfully authenticated" | sed 's/.*Hi \([^!]*\)!.*/\1/')
+            echo "🎉 Authenticated as: $USERNAME"
+          else
             echo "❌ SSH key validation failed"
+            echo "Expected to see 'successfully authenticated' in the output"
+            echo "Actual output: $SSH_OUTPUT"
+            exit 1
+          fi
+          
+          echo "🔍 Testing access to fork repository..."
+          # Test if we can access the specific repository
+          git ls-remote git@github.com:lukas8219/rinha-de-backend-2026.git HEAD > /dev/null 2>&1 && {
+            echo "✅ Successfully accessed fork repository"
+          } || {
+            echo "❌ Cannot access fork repository - check if SSH key has proper permissions"
             exit 1
           }
 
