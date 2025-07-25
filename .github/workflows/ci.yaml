@@ -68,12 +68,15 @@ jobs:
       - name: Checkout current repository
         uses: actions/checkout@v3
 
-      - name: Checkout fork repository
-        uses: actions/checkout@v3
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.1
         with:
-          repository: lukas8219/rinha-de-backend-2026
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: fork-repo
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Checkout fork repository
+        run: |
+          # Clone using SSH
+          git clone git@github.com:lukas8219/rinha-de-backend-2026.git fork-repo
 
       - name: Generate branch name
         id: gen_branch
@@ -87,7 +90,6 @@ jobs:
           cd fork-repo
           git config user.name "GitHub Actions[lukas8219]"
           git config user.email "lukas8219@gmail.com"
-          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/lukas8219/rinha-de-backend-2026.git
 
       - name: Create and checkout new branch
         run: |
