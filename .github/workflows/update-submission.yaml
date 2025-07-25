@@ -89,7 +89,8 @@ jobs:
 
       - name: Create modified docker-compose with image tags
         env:
-          APP_IMAGE: ${{ github.event.inputs.tag }}
+          APP_IMAGE_TAG: "docker.io/lukas8219/rinha-de-backend-2025-app:${{ github.event.inputs.tag }}"
+          WORKER_IMAGE_TAG: "docker.io/lukas8219/rinha-de-backend-2025-worker:${{ github.event.inputs.tag }}"
         run: |
           echo "🔧 Creating modified docker-compose.yaml with provided image tags:"
           echo "  App services will use: $APP_IMAGE"
@@ -118,11 +119,11 @@ jobs:
           
           # For app1 service (base app definition) - remove build and add image
           yq eval 'del(.services.app1.build)' -i docker-compose-modified.yaml
-          yq eval '.services.app1.image = strenv(docker.io/lukas8219/rinha-de-backend-2025-app:$APP_IMAGE)' -i docker-compose-modified.yaml
+          yq eval ".services.app1.image = strenv(APP_IMAGE_TAG)" -i docker-compose-modified.yaml
           
           # For consumer service - remove build and add image
           yq eval 'del(.services.consumer.build)' -i docker-compose-modified.yaml
-          yq eval '.services.consumer.image = strenv(docker.io/lukas8219/rinha-de-backend-2025-worker:$APP_IMAGE)' -i docker-compose-modified.yaml
+          yq eval ".services.consumer.image = strenv(WORKER_IMAGE_TAG)" -i docker-compose-modified.yaml
           
           # Fix any !!merge syntax issues (yq sometimes outputs this incorrectly)
           sed -i 's/!!merge <</<</' docker-compose-modified.yaml
@@ -133,9 +134,23 @@ jobs:
           echo ""
           echo "📋 Preview of modified services:"
           echo "--- app1 service image ---"
-          yq eval '.services.app1.image' docker-compose-modified.yaml
-          echo "--- consumer service image ---"  
-          yq eval '.services.consumer.image' docker-compose-modified.yaml
+          APP1_IMAGE=$(yq eval '.services.app1.image' docker-compose-modified.yaml)
+          echo "--- app1 service image ---"
+          if [[ -z "$APP1_IMAGE" || "$APP1_IMAGE" == "null" ]]; then
+            echo "❌ Error: app1 service image is empty!"
+            exit 1
+          else
+            echo "$APP1_IMAGE"
+          fi
+
+          echo "--- consumer service image ---"
+          CONSUMER_IMAGE=$(yq eval '.services.consumer.image' docker-compose-modified.yaml)
+          if [[ -z "$CONSUMER_IMAGE" || "$CONSUMER_IMAGE" == "null" ]]; then
+            echo "❌ Error: consumer service image is empty!"
+            exit 1
+          else
+            echo "$CONSUMER_IMAGE"
+          fi
           
           # Validate YAML syntax
           echo ""
