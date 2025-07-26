@@ -114,7 +114,7 @@ jobs:
           
           # Remove all build sections from services
           # Method 1: Target specific known services (more reliable)
-          yq eval 'del(.services.app1.build, .services.consumer.build)' -i docker-compose.yaml
+          yq eval 'del(.services.app1.build, .services.consumer.build, .services.pingora.build)' -i docker-compose.yaml
           
           # Method 2: If the above doesn't catch all services, try recursive approach
           # yq eval 'del(.services | .. | select(has("build")).build)' -i docker-compose.yaml
