@@ -42,6 +42,12 @@ dev-server: lib build-skiplist build-json-generator
 dev-consumer: lib build-skiplist build-json-generator
 	SOCKET_PATH=/tmp/1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
 
+dev-pingora: lib build-skiplist build-json-generator
+	RUST_LOG=debug cargo run --bin pingora-server
+
+dev-pingora-help:
+	RUST_LOG=debug cargo run --bin pingora-server -- --help
+
 spec-skiplist: lib build-skiplist build-json-generator
 	$(CRYSTAL_BIN) spec src/skiplist_spec.cr
 

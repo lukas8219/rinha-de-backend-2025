@@ -148,6 +148,8 @@ else
     nginx_p99_latency="N/A"
 fi
 
+docker-compose restart
+
 if [ $pingora_ready -eq 0 ]; then
     run_benchmark "$PINGORA_URL" "Pingora"
 else

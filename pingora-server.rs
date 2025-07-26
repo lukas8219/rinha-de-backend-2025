@@ -1,8 +1,14 @@
 use pingora::prelude::*;
 use pingora::server::Server;
 use async_trait::async_trait;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use http::Method;
 
-struct LB {}
+struct LB {
+    write_peers: [&'static str; 2],
+    read_peer: &'static str,
+    index: AtomicUsize,
+}
 
 #[async_trait]
 impl ProxyHttp for LB {
@@ -12,19 +18,28 @@ impl ProxyHttp for LB {
     }
 
     async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut ()) -> Result<Box<HttpPeer>> {
-        let peer = HttpPeer::new_uds("/tmp/app1.sock", false, "".to_string()).unwrap();
-        Ok(Box::new(peer))
+        match _session.req_header().method {
+            Method::POST => {
+            let peer = HttpPeer::new_uds(self.write_peers[self.index.fetch_add(1, Ordering::Relaxed) % self.write_peers.len()], false, "".to_string()).unwrap();
+            Ok(Box::new(peer))
+            },
+            _ => {
+                let peer = HttpPeer::new_uds(self.read_peer, false, "".to_string()).unwrap();
+                Ok(Box::new(peer))
+            }
+        }
     }
+
 }
 
 fn main() {
     env_logger::init();
-    let mut my_server = Server::new(None).unwrap();
-    log::info!("Pingora server started");
-    let mut lb = http_proxy_service(&my_server.configuration, LB {});
+    let mut server = Server::new(Opt::parse_args()).unwrap();
+    let write_peers = ["/dev/shm/app1.sock", "/dev/shm/app2.sock"];
+    let read_peer = "/dev/shm/1.sock";
+    let mut lb = http_proxy_service(&server.configuration, LB { write_peers, read_peer, index: AtomicUsize::new(0) });
     lb.add_tcp("0.0.0.0:9998");
-
-    log::info!("Pingora server starting on 0.0.0.0:9998");
-    my_server.bootstrap();
-    my_server.run_forever();
+    server.add_service(lb);
+    server.bootstrap();
+    server.run_forever();
 }

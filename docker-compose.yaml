@@ -118,7 +118,7 @@ services:
       - lavinmq
       - consumer
     ports:
-      - "9999:9999"
+      - "9998:9999"
     ulimits:
       nproc: 1000000
       nofile:
@@ -149,7 +149,7 @@ services:
       - lavinmq
       - consumer
     ports:
-      - "9998:9998"
+      - "9999:9998"
     ulimits:
       nproc: 1000000
       nofile:
