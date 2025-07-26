@@ -108,13 +108,15 @@ services:
       dockerfile: Dockerfile.pingora
     user: "1001:1001"
     ipc: host
+    environment:
+      PORT: "9999"
     depends_on:
       - app1
       - app2
       - lavinmq
       - consumer
     ports:
-      - "9999:9998"
+      - "9999:9999"
     ulimits:
       nproc: 1000000
       nofile:
