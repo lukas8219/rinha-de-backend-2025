@@ -9,9 +9,6 @@ jobs:
   k6-test:
     runs-on: ubuntu-latest
     permissions: write-all
-    env:
-      MAX_REQUESTS: 550
-      COMPOSE_PARALLEL_LIMIT: -1
 
     steps:
       - name: Checkout code
@@ -37,9 +34,7 @@ jobs:
         run: sleep 5
 
       - name: Build and start services
-        run: |
-         docker-compose build --parallel
-         docker-compose up -d
+        run: docker-compose up -d --build
 
       - name: Wait for services to be healthy
         run: |
