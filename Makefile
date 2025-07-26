@@ -1,10 +1,12 @@
 CRYSTAL_BIN ?= crystal
-CRYSTAL_FLAGS ?= -Dgc_none
+CRYSTAL_FLAGS ?=
 SHARDS_BIN ?= shards
 CC ?= gcc
 CFLAGS ?= -O3 -funroll-loops -DNDEBUG -fPIC -Wall -Wno-unused-function
+# SIMD-optimized flags for skiplist (cross-platform)
+SKIPLIST_CFLAGS ?= $(CFLAGS) -march=native -ftree-vectorize
 
-.PHONY: deps build run-server run-consumer clean dev-server dev-consumer build-skiplist test-skiplist benchmark-skiplist
+.PHONY: deps build run-server run-consumer clean dev-server dev-consumer build-skiplist test-skiplist benchmark-skiplist test-simd test-simd-performance check-simd-assembly
 
 bin:
 	mkdir -p bin
@@ -86,11 +88,5 @@ benchmark-long:
 	@echo "Running long benchmark (60s duration)..."
 	DURATION=60s ./benchmark.sh
 
-stop-services:
-	docker-compose down
-
-logs-nginx:
-	docker-compose logs -f nginx
-
-logs-pingora:
-	docker-compose logs -f pingora
+test-simd: build-skiplist
+	crystal run src/simd_test.cr --release
