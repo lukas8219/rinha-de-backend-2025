@@ -94,7 +94,6 @@ jobs:
           
           # Copy current docker-compose.yaml and nginx.conf from current repo to fork
           cp ../docker-compose.yaml participantes/luucaspole-crystal/docker-compose.yaml
-          cp ../nginx.conf participantes/luucaspole-crystal/nginx.conf
           echo "📝 Updated docker-compose.yaml and nginx.conf in participantes/luucaspole-crystal/"
 
       - name: Remove build sections from docker-compose
