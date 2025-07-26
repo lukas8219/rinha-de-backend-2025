@@ -1,4 +1,5 @@
 @[Link(ldflags: "#{__DIR__}/../lib/c/libskiplist.a")]
+@[Link("jemalloc")]
 lib LibSkiplist
   # C structure definitions
   struct ZSkiplistLevel
