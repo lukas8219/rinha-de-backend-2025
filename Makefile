@@ -2,7 +2,7 @@ CRYSTAL_BIN ?= crystal
 CRYSTAL_FLAGS ?=
 SHARDS_BIN ?= shards
 CC ?= gcc
-CFLAGS ?= -O3 -funroll-loops -DNDEBUG -fPIC -Wall -Wno-unused-function
+CFLAGS ?= -O3 -funroll-loops -DNDEBUG -fPIC -Wall -Wno-unused-function -Wpsabi
 # SIMD-optimized flags for skiplist (cross-platform)
 SKIPLIST_CFLAGS ?= $(CFLAGS) -march=native -ftree-vectorize
 
@@ -21,7 +21,7 @@ deps: lib
 # Build the skiplist C library
 build-skiplist:
 	mkdir -p lib/c
-	$(CC) $(CFLAGS) -c src/lib/skiplist.c -o lib/c/skiplist.o
+	$(CC) $(SKIPLIST_CFLAGS) -c src/lib/skiplist.c -o lib/c/skiplist.o
 	ar rcs lib/c/libskiplist.a lib/c/skiplist.o
 
 # Build the JSON generator C library
