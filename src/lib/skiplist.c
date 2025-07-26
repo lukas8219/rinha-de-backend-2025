@@ -142,8 +142,9 @@ zskiplistRange *zslRange(zskiplist *zsl, double min, double max) {
     zskiplistRange *range = malloc(sizeof(zskiplistRange));
     int i;
     
+    int initial_capacity = max - min;
     // Initialize range structure
-    range->capacity = 16;  // Start with small capacity
+    range->capacity = initial_capacity;  // Start with small capacity
     range->elements = malloc(sizeof(long) * range->capacity);
     range->scores = malloc(sizeof(double) * range->capacity);
     range->count = 0;
