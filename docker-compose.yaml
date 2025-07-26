@@ -103,7 +103,7 @@ services:
           cpus: '0.1'
           memory: '35MB'
   pingora: # Pingora Load Balancer
-    image: docker.io/rinha-de-backend-2025-load-balancer-pingora:pingora-0b7f83e5a-1753557406
+    image: docker.io/lukas8219/rinha-de-backend-2025-load-balancer-pingora:pingora-0b7f83e5a-1753557406
     build:
       context: .
       dockerfile: Dockerfile.pingora
