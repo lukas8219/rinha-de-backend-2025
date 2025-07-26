@@ -21,6 +21,10 @@ options "/*" do |env|
   env.response.status_code = 200
 end
 
+get "/healthcheck" do |env|
+  env.response.status_code = 200
+end
+
 post "/payments" do |env|
   env.response.content_type = "application/json"
   

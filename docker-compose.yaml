@@ -137,6 +137,37 @@ services:
           cpus: '0.1'
           memory: '55MB'
 
+  pingora: # Pingora Load Balancer
+    build:
+      context: .
+      dockerfile: Dockerfile.pingora
+    user: "1001:1001"
+    ipc: host
+    depends_on:
+      - app1
+      - app2
+      - lavinmq
+      - consumer
+    ports:
+      - "9998:9998"
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    networks:
+      - backend
+    cpu_shares: 2048
+    cpuset: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: '55MB'
+        reservations:
+          cpus: '0.1'
+          memory: '55MB'
+
 volumes:
   nginx_cache:
     driver: local

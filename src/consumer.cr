@@ -67,6 +67,10 @@ socket_path = ENV.fetch("SOCKET_PATH", "/dev/shm/consumer.sock")
 TO_CONSTANT = Time.parse_iso8601("3000-01-01T00:00:00Z").to_unix_ms.to_f
 FROM_CONSTANT = Time.parse_iso8601("1970-01-01T00:00:00Z").to_unix_ms.to_f
 
+get "/healthcheck" do |env|
+  env.response.status_code = 200
+end
+
 get "/payments-summary" do |env|
   from_param_raw = env.params.query["from"]?
   to_param_raw = env.params.query["to"]?

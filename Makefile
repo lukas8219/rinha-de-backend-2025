@@ -54,3 +54,29 @@ benchmark-json: lib build-skiplist build-json-generator
 download-perf-tooling:
 	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/flamegraph.pl -O profiling-data/flamegraph.pl
 	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/stackcollapse-perf.pl -O profiling-data/stackcollapse-perf.pl
+
+# Benchmark targets for NGINX vs Pingora comparison
+benchmark-nginx-pingora:
+	@echo "Building and starting services..."
+	docker-compose up -d --build
+	@echo "Waiting for services to be ready..."
+	sleep 15
+	@echo "Running benchmark..."
+	./benchmark.sh
+
+benchmark-quick:
+	@echo "Running quick benchmark (10s duration)..."
+	DURATION=10s ./benchmark.sh
+
+benchmark-long:
+	@echo "Running long benchmark (60s duration)..."
+	DURATION=60s ./benchmark.sh
+
+stop-services:
+	docker-compose down
+
+logs-nginx:
+	docker-compose logs -f nginx
+
+logs-pingora:
+	docker-compose logs -f pingora
