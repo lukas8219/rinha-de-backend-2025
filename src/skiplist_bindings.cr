@@ -1,4 +1,5 @@
 @[Link(ldflags: "#{__DIR__}/../lib/c/libskiplist.a")]
+@[Link("jemalloc")]
 lib LibSkiplist
   # C structure definitions
   struct ZSkiplistLevel
@@ -36,6 +37,7 @@ lib LibSkiplist
   fun zslCount = zslCount(zsl : ZSkiplist*, min : Float64, max : Float64) : UInt64
   fun zslRange = zslRange(zsl : ZSkiplist*, min : Float64, max : Float64) : ZSkiplistRange*
   fun zslFreeRange = zslFreeRange(range : ZSkiplistRange*) : Void
+  fun zslPrintSIMDStatus = zslPrintSIMDStatus() : Void
 end
 
 # Structure to hold range scan results in Crystal
@@ -110,5 +112,9 @@ class Skiplist
 
   def finalize
     LibSkiplist.zslFree(@skiplist) unless @skiplist.null?
+  end
+
+  def self.print_simd_status
+    LibSkiplist.zslPrintSIMDStatus()
   end
 end 

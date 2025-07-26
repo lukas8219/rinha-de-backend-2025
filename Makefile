@@ -1,9 +1,15 @@
 CRYSTAL_BIN ?= crystal
+CRYSTAL_FLAGS ?=
 SHARDS_BIN ?= shards
 CC ?= gcc
-CFLAGS ?= -O2 -fPIC -Wall
+CFLAGS ?= -O3 -funroll-loops -DNDEBUG -fPIC -Wall -Wno-unused-function -Wpsabi
+# SIMD-optimized flags for skiplist (cross-platform)
+SKIPLIST_CFLAGS ?= $(CFLAGS) -march=native -ftree-vectorize
 
-.PHONY: deps build run-server run-consumer clean dev-server dev-consumer build-skiplist test-skiplist benchmark-skiplist
+.PHONY: deps build run-server run-consumer clean dev-server dev-consumer build-skiplist test-skiplist benchmark-skiplist test-simd test-simd-performance check-simd-assembly
+
+bin:
+	mkdir -p bin
 
 # Install dependencies only if shard.yml changed or lib doesn't exist
 lib: shard.yml
@@ -15,16 +21,20 @@ deps: lib
 # Build the skiplist C library
 build-skiplist:
 	mkdir -p lib/c
-	$(CC) $(CFLAGS) -c src/lib/skiplist.c -o lib/c/skiplist.o
+	$(CC) $(SKIPLIST_CFLAGS) -c src/lib/skiplist.c -o lib/c/skiplist.o
 	ar rcs lib/c/libskiplist.a lib/c/skiplist.o
 
 # Build the JSON generator C library
 build-json-generator:
 	$(CC) $(CFLAGS) -c src/lib/json_generator.c -o src/lib/json_generator.o
 
-build: lib build-skiplist build-json-generator
-	$(CRYSTAL_BIN) build src/server.cr -o bin/server
-	$(CRYSTAL_BIN) build src/consumer.cr -o bin/consumer
+build-consumer: bin
+	$(CRYSTAL_BIN) build src/consumer.cr $(CRYSTAL_FLAGS) -o bin/consumer
+
+build-server: bin
+	$(CRYSTAL_BIN) build src/server.cr $(CRYSTAL_FLAGS) -o bin/server
+
+build: lib build-skiplist build-json-generator build-consumer build-server
 
 run-server: build
 	./bin/server
@@ -49,13 +59,13 @@ dev-pingora-help:
 	RUST_LOG=debug cargo run --bin pingora-server -- --help
 
 spec-skiplist: lib build-skiplist build-json-generator
-	$(CRYSTAL_BIN) spec src/skiplist_spec.cr
+	$(CRYSTAL_BIN) spec $(CRYSTAL_FLAGS) src/skiplist_spec.cr
 
 benchmark-skiplist: lib build-skiplist build-json-generator
-	$(CRYSTAL_BIN) run src/skiplist_benchmark.cr --release
+	$(CRYSTAL_BIN) run $(CRYSTAL_FLAGS) src/skiplist_benchmark.cr --release
 
 benchmark-json: lib build-skiplist build-json-generator
-	$(CRYSTAL_BIN) run src/json_benchmark.cr --release
+	$(CRYSTAL_BIN) run $(CRYSTAL_FLAGS) src/json_benchmark.cr --release
 
 download-perf-tooling:
 	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/flamegraph.pl -O profiling-data/flamegraph.pl
@@ -78,11 +88,5 @@ benchmark-long:
 	@echo "Running long benchmark (60s duration)..."
 	DURATION=60s ./benchmark.sh
 
-stop-services:
-	docker-compose down
-
-logs-nginx:
-	docker-compose logs -f nginx
-
-logs-pingora:
-	docker-compose logs -f pingora
+test-simd: build-skiplist
+	crystal run src/simd_test.cr --release

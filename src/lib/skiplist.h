@@ -35,5 +35,6 @@ int zslDelete(zskiplist *zsl, double score, long ele);
 unsigned long zslCount(zskiplist *zsl, double min, double max);
 zskiplistRange *zslRange(zskiplist *zsl, double min, double max);
 void zslFreeRange(zskiplistRange *range);
+void zslPrintSIMDStatus(void);
 
 #endif
