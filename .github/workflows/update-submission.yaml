@@ -76,7 +76,8 @@ jobs:
         run: |
           cd fork-repo
           git remote add zan https://github.com/zanfranceschi/rinha-de-backend-2025.git
-          git rebase zan/main;
+          git fetch zan;
+          git rebase zan/main -X theirs;
           git checkout -B ${{ env.BRANCH_NAME }}
 
           
