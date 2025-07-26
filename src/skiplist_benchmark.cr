@@ -7,8 +7,8 @@ struct BenchmarkConfig
   property iterations : Int32
 
   def initialize
-    @dataset_sizes = [10_000, 50_000, 100_000]
-    @range_sizes = [100, 1_000, 10_000]
+    @dataset_sizes = [10_000, 50_000, 100_000, 300_000]
+    @range_sizes = [100, 1_000, 10_000, 100_000, 300_000]
     @iterations = 5
   end
 end

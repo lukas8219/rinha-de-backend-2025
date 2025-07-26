@@ -37,10 +37,16 @@ clean:
 	rm -rf lib/
 
 dev-server: lib build-skiplist build-json-generator
-	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/server.cr
+	SOCKET_PATH=/tmp/app1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run src/server.cr
 
 dev-consumer: lib build-skiplist build-json-generator
-	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
+	SOCKET_PATH=/tmp/1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
+
+dev-pingora: lib build-skiplist build-json-generator
+	RUST_LOG=debug cargo run --bin pingora-server
+
+dev-pingora-help:
+	RUST_LOG=debug cargo run --bin pingora-server -- --help
 
 spec-skiplist: lib build-skiplist build-json-generator
 	$(CRYSTAL_BIN) spec src/skiplist_spec.cr
@@ -54,3 +60,29 @@ benchmark-json: lib build-skiplist build-json-generator
 download-perf-tooling:
 	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/flamegraph.pl -O profiling-data/flamegraph.pl
 	wget https://raw.githubusercontent.com/brendangregg/FlameGraph/refs/heads/master/stackcollapse-perf.pl -O profiling-data/stackcollapse-perf.pl
+
+# Benchmark targets for NGINX vs Pingora comparison
+benchmark-nginx-pingora:
+	@echo "Building and starting services..."
+	docker-compose up -d --build
+	@echo "Waiting for services to be ready..."
+	sleep 15
+	@echo "Running benchmark..."
+	./benchmark.sh
+
+benchmark-quick:
+	@echo "Running quick benchmark (10s duration)..."
+	DURATION=10s ./benchmark.sh
+
+benchmark-long:
+	@echo "Running long benchmark (60s duration)..."
+	DURATION=60s ./benchmark.sh
+
+stop-services:
+	docker-compose down
+
+logs-nginx:
+	docker-compose logs -f nginx
+
+logs-pingora:
+	docker-compose logs -f pingora
