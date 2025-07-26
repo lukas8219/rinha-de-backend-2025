@@ -17,7 +17,7 @@ env:
   IMAGE_NAME: lukas8219/rinha-de-backend-2025
 
 jobs:
-  build-and-push:
+  build-and-push-crystal:
     runs-on: ubuntu-latest
     outputs:
       app-image-tag: ${{ steps.set_outputs.outputs.app-image-tag }}
