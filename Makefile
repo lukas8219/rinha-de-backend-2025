@@ -37,10 +37,10 @@ clean:
 	rm -rf lib/
 
 dev-server: lib build-skiplist build-json-generator
-	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run src/server.cr
+	SOCKET_PATH=/tmp/app1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run src/server.cr
 
 dev-consumer: lib build-skiplist build-json-generator
-	HOSTNAME=1 SHARD_COUNT=1 SOCKET_SUB_FOLDER=/tmp $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
+	SOCKET_PATH=/tmp/1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
 
 spec-skiplist: lib build-skiplist build-json-generator
 	$(CRYSTAL_BIN) spec src/skiplist_spec.cr
