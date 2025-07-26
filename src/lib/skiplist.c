@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "skiplist.h"
-#include <stdint.h>
 
 // SIMD support detection
 #if defined(__ARM_NEON) || defined(__aarch64__)
