@@ -62,7 +62,7 @@ jobs:
       - name: Generate branch name
         id: gen_branch
         run: |
-          BRANCH_NAME="automate-pr-$(date +%Y%m%d-%H%M%S)"
+          BRANCH_NAME="automated-pr"
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
@@ -75,7 +75,7 @@ jobs:
       - name: Create and checkout new branch
         run: |
           cd fork-repo
-          git checkout -b ${{ env.BRANCH_NAME }}
+          git checkout -B ${{ env.BRANCH_NAME }}
 
           
 
@@ -141,6 +141,6 @@ jobs:
             - Source SHA: ${{ github.sha }}
             - Triggered manually via workflow_dispatch"
             
-            git push origin ${{ env.BRANCH_NAME }}
+            git push -f origin ${{ env.BRANCH_NAME }}
             echo "✅ Changes pushed to branch: ${{ env.BRANCH_NAME }}"
           fi
