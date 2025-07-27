@@ -37,10 +37,7 @@ clean:
 	rm -rf lib/
 
 dev-server: lib build-skiplist build-json-generator
-	PORT=3000 SHARDING_KEY=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run src/server.cr
-
-dev-consumer: lib build-skiplist build-json-generator
-	SOCKET_PATH=/tmp/1.sock SHARDING_KEY=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
+	PORT=3000 USE_HTTP=true $(CRYSTAL_BIN) run src/server.cr
 
 dev-pingora: lib build-skiplist build-json-generator
 	PORT=9999 RUST_LOG=debug cargo run --bin pingora-server

@@ -5,6 +5,8 @@ x-enviromments: &x-enviromments
   - PROCESSOR_URL: "http://payment-processor-default:8080"
   - FALLBACK_URL: "http://payment-processor-fallback:8080"
   - DISABLE_LOG: "true"
+  - PORT: "9999"
+  # - USE_HTTP: "true"
 
 services:
   app1: &app
@@ -15,20 +17,17 @@ services:
       target: app
     hostname: app1
     restart: unless-stopped
+    cpu_shares: 2048
+    cpuset: "0"
     ipc: host
     environment:
       <<: *x-enviromments
-      # SOCKET_PATH: "/dev/shm/app1.sock"
+      SOCKET_PATH: "/dev/shm/app1.sock"
     networks:
       - backend
       - payment-processor
     expose:
-      - "3001:3000"
-    depends_on:
-      lavinmq:
-        condition: service_healthy
-      consumer:
-        condition: service_started
+      - "3001:9999"
     ulimits:
       nproc: 1000000
       nofile:
@@ -37,112 +36,93 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.20'
-          memory: '40MB'
+          cpus: '0.75'
+          memory: '125MB'
   app2:
     <<: *app
     user: "1001:1001"
-    ipc: host
-    ports:
-      - "3002:3000"
-    environment:
-      <<: *x-enviromments
-      # SOCKET_PATH: "/dev/shm/app2.sock"
-    hostname: app2
-    depends_on:
-      lavinmq:
-        condition: service_healthy
-      consumer:
-        condition: service_started
-
-  consumer: &consumer
-    <<: *app
-    user: "1001:1001"
-    hostname: "consumer"
-    ipc: host
-    cpuset: "0"
-    environment:
-      <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/consumer.sock"
-      USE_HTTP: "true"
-      SHARDING_KEY: "1"
-    cpu_shares: 3072
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: '150MB'
-        reservations:
-          cpus: '1'
-          memory: '150MB'
-    image: docker.io/lukas8219/rinha-de-backend-2025-worker:main-a52e7a23e-1753551398
-    build:
-      context: .
-      target: worker
-    depends_on:
-      lavinmq:
-        condition: service_healthy
-
-  lavinmq:
-    image: cloudamqp/lavinmq:latest
-    container_name: lavinmq
-    healthcheck:
-      test: ["CMD", "lavinmqctl", "status"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
-      start_period: 5s
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    networks:
-      - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '0.1'
-          memory: '35MB'
-        reservations:
-          cpus: '0.1'
-          memory: '35MB'
-  pingora: # Pingora Load Balancer
-    image: docker.io/lukas8219/rinha-de-backend-2025-load-balancer-pingora:pingora-0b7f83e5a-1753557406
-    build:
-      context: .
-      dockerfile: Dockerfile.pingora
-      cache_from:
-         - docker.io/lukas8219/rinha-de-backend-2025-load-balancer-pingora:latest
-    user: "1001:1001"
-    ipc: host
-    security_opt:
-      - seccomp=unconfined
-    environment:
-      RUST_LOG: debug
-      PORT: "9999"
-    depends_on:
-      - app1
-      - app2
-      - lavinmq
-      - consumer
-    ports:
-      - "9999:9999"
-    ulimits:
-      nproc: 1000000
-      nofile:
-        soft: 1000000
-        hard: 1000000
-    networks:
-      - backend
     cpu_shares: 2048
-    cpuset: "2"
+    cpuset: "1"
+    ipc: host
+    ports:
+      - "3002:9999"
+    environment:
+      <<: *x-enviromments
+      SOCKET_PATH: "/dev/shm/app2.sock"
+    hostname: app2
+
+  # pingora: # Pingora Load Balancer
+  #   image: docker.io/lukas8219/rinha-de-backend-2025-load-balancer-pingora:pingora-0b7f83e5a-1753557406
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.pingora
+  #     cache_from:
+  #        - docker.io/lukas8219/rinha-de-backend-2025-load-balancer-pingora:latest
+  #   user: "1001:1001"
+  #   ipc: host
+  #   security_opt:
+  #     - seccomp=unconfined
+  #   environment:
+  #     PORT: "9999"
+  #   depends_on:
+  #     - app1
+  #     - app2
+  #   ports:
+  #     - "9999:9999"
+  #   ulimits:
+  #     nproc: 1000000
+  #     nofile:
+  #       soft: 1000000
+  #       hard: 1000000
+  #   networks:
+  #     - backend
+  #   cpu_shares: 2048
+  #   cpuset: "2"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.3'
+  #         memory: '55MB'
+  #       reservations:
+  #         cpus: '0.3'
+  #         memory: '55MB'
+
+  nginx:
+    image: nginx:latest
+    user: "1001:1001"
+    ipc: host
+    networks:
+      - backend
+    ports:
+      - "9998:9999"
+    volumes:
+      - nginx_cache:/var/cache/nginx
+      - nginx_log:/var/log/nginx
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    cpu_shares: 1024
+    cpuset: "3"
     deploy:
       resources:
         limits:
-          cpus: '0.3'
+          cpus: '0.1'
           memory: '55MB'
         reservations:
-          cpus: '0.3'
+          cpus: '0.1'
           memory: '55MB'
+
+volumes:
+  nginx_cache:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=1001,gid=1001"
+  nginx_log:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=1001,gid=1001"
 networks:
   backend:
     driver: bridge

@@ -2,13 +2,11 @@ use pingora::{prelude::*, server::configuration::{Opt, ServerConf}, upstreams::p
 use pingora::server::Server;
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use http::Method;
 use std::time::Duration;
 
 struct LB {
     write_peer1: HttpPeer,
     write_peer2: HttpPeer,
-    read_peer: HttpPeer,
     index: AtomicUsize,
 }
 
@@ -20,25 +18,16 @@ impl ProxyHttp for LB {
     }
 
     async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut ()) -> Result<Box<HttpPeer>> {
-        let peer = match _session.req_header().method {
-            Method::POST => {
-                let idx = self.index.fetch_add(1, Ordering::Relaxed);
-                if idx % 2 == 0 {
-                    &self.write_peer1
-                } else {
-                    &self.write_peer2
-                }
-            },
-            _ => &self.read_peer
+        let peer = match self.index.fetch_add(1, Ordering::Relaxed) % 2 {
+            0 => &self.write_peer1,
+            1 => &self.write_peer2,
+            _ => &self.write_peer1,
         };
-        
         Ok(Box::new(peer.clone()))
     }
 }
 
 fn create_peer(host: &str, port: u16) -> HttpPeer {
-    // let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default()).unwrap();
-    // let resolved_hostname = resolver.lookup_ip(host).unwrap().iter().next().unwrap().to_string();
     let mut peer = HttpPeer::new(format!("{}:{}", host, port), false, "".to_string());
     let options = peer.get_mut_peer_options().unwrap();
     options.tcp_fast_open = true;
@@ -56,13 +45,13 @@ fn create_peer(host: &str, port: u16) -> HttpPeer {
 
 fn main() {
     env_logger::init();
-    let conf = ServerConf::new().unwrap();
+    let mut conf = ServerConf::new().unwrap();
+    conf.threads = 1;
     let mut server = Server::new_with_opt_and_conf(Opt::parse_args(), conf);
     
     let lb = LB {
-        write_peer1: create_peer("app1", 3000),
-        write_peer2: create_peer("app2", 3000),
-        read_peer: create_peer("consumer", 9999),
+        write_peer1: create_peer("app1", 9999),
+        write_peer2: create_peer("app2", 9999),
         index: AtomicUsize::new(0),
     };
     

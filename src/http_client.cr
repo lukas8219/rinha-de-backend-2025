@@ -19,7 +19,7 @@ class HttpClient
   property current_stats : HttpClientStats?
   property timeout : Int32
 
-  def initialize(@name : String, @pubsub_client : PubSubClient, @base_url : String?, timeout : Int32 = 500)
+  def initialize(@name : String, @pubsub_client : PubSub::Client, @base_url : String?, timeout : Int32 = 500)
     @current_stats = HttpClientStats.new(failing: false, minResponseTime: 0)
     base_uri = URI.parse(@base_url.not_nil!)
     @stats_client = HTTP::Client.new(uri: base_uri)
@@ -27,10 +27,10 @@ class HttpClient
     @stats_client.connect_timeout = 500.milliseconds
     @timeout = timeout
     spawn update_health_loop
-    @pubsub_client.subscribe_health(@name) do |delivery|
-      @current_stats = HttpClientStats.from_json(delivery.body_io.to_s)
-      # Worth parsing it and checking the `latency` metric. Give it some marging and set as timeout?
-    end
+    # @pubsub_client.subscribe_health(@name) do |delivery|
+    #   @current_stats = HttpClientStats.from_json(delivery.body_io.to_s)
+    #   # Worth parsing it and checking the `latency` metric. Give it some marging and set as timeout?
+    # end
   end
 
   def update_health_loop()
@@ -44,7 +44,7 @@ class HttpClient
   end
 
   def send_health_update(stats : HttpClientStats)
-    @pubsub_client.publish_health(@name, IO::Memory.new(stats.to_json))
+    #@pubsub_client.publish_health(@name, stats)
   end
 
   # Accepts a buffer of data (String or IO) instead of a Payment object
