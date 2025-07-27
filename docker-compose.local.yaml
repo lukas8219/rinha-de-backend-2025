@@ -1,0 +1,27 @@
+include:
+  - docker-compose.yaml
+
+services:
+  root-ubuntu:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: root-ubuntu
+    network_mode: host
+    privileged: true
+    tty: true
+    stdin_open: true
+    pid: host
+    security_opt:
+      - seccomp=unconfined
+    volumes:
+      - ./scripts:/scripts
+  # bpftools:
+  #   image: calico/bpftool:latest
+  #   command: /bin/sh
+  #   container_name: bpftools
+  #   network_mode: host
+  #   privileged: true
+  #   tty: true
+  #   stdin_open: true
+  #   pid: host

@@ -71,6 +71,13 @@ get "/healthcheck" do |env|
   env.response.status_code = 200
 end
 
+before_all do |env|
+  env.response.headers.add "Access-Control-Allow-Origin", "*"
+  env.response.headers.add "Access-Control-Allow-Methods", "GET, POST, OPTIONS"
+  env.response.headers.add "Access-Control-Allow-Headers", "Content-Type"
+  env.response.headers.add "Connection", "no-keepalive"
+end
+
 get "/payments-summary" do |env|
   from_param_raw = env.params.query["from"]?
   to_param_raw = env.params.query["to"]?
@@ -94,8 +101,12 @@ end
 Fiber::ExecutionContext::Isolated.new("server") do
   Log.info { "Starting Kemal server" }
   Kemal.run do |config|
-    config.server.not_nil!.bind_unix(socket_path)
-    File.chmod(socket_path, 0o666)
+    if ENV["USE_HTTP"]?
+      config.server.not_nil!.bind_tcp("0.0.0.0", 9999)
+    else
+      config.server.not_nil!.bind_unix(socket_path)
+      File.chmod(socket_path, 0o666)
+    end
   end
 end
 

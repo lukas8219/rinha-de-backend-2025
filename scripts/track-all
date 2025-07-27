@@ -1,0 +1,7 @@
+tracepoint:syscalls:sys_enter_* {
+  @[pid, comm, probe] = count();
+}
+
+kprobe:sock_*, kprobe:tcp_* {
+  @[pid, comm, probe] = count();
+}

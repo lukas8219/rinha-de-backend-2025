@@ -1,0 +1,7 @@
+FROM ubuntu:24.04
+#net-tools lsof
+RUN apt update
+RUN apt install -y net-tools lsof git make gcc flex bison wget linux-tools-common linux-tools-generic linux-tools-6.14.0-24-generic strace iproute2 bpftrace
+RUN git clone https://github.com/brendangregg/Flamegraph
+RUN rm -rf /usr/bin/perf && ln -s /usr/lib/linux-tools/6.8.0-64-generic/perf /usr/bin/perf
+CMD ["/bin/bash"]

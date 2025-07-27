@@ -1,4 +1,4 @@
-FROM rust:1.83-bullseye as builder
+FROM rust:1.88-bullseye as builder
 
 RUN apt-get update && apt-get install -y \
     cmake \
@@ -7,9 +7,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY Cargo.toml .
+COPY Cargo.lock .
+
+# Update cargo index first, then copy source and build frozen
+RUN cargo fetch
 COPY pingora-server.rs .
 
-RUN cargo build --release --bin pingora-server
+RUN cargo build --release --frozen --bin pingora-server
 
 FROM debian:bullseye-slim
 
