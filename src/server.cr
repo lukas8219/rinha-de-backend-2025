@@ -15,6 +15,7 @@ before_all do |env|
   env.response.headers.add "Access-Control-Allow-Origin", "*"
   env.response.headers.add "Access-Control-Allow-Methods", "GET, POST, OPTIONS"
   env.response.headers.add "Access-Control-Allow-Headers", "Content-Type"
+  env.response.headers.add "Connection", "no-keepalive"
 end
 
 options "/*" do |env|
@@ -41,7 +42,7 @@ post "/payments" do |env|
 end
 
 # Start the server
-port = ENV["PORT"]?.try(&.to_i) || 9999
+port = ENV["PORT"]?.try(&.to_i) || 3000
 Log.info { "HTTP Server running on port #{port}" }
 Log.info { "GET /payment-summary - Get payment summary" }
 Log.info { "POST /payments - Create a new payment" }
@@ -56,6 +57,6 @@ Kemal.run(port) do |config|
     File.chmod(socket_path, 0o666)
     Log.info { "HTTP Server running on socket #{socket_path}" }
   else
-    config.server.not_nil!.bind_tcp(port)
+    config.server.not_nil!.bind_tcp("0.0.0.0", port)
   end
 end

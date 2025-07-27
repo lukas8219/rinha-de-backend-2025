@@ -1,0 +1,7 @@
+kprobe:__arm64_sys_accept4, kprobe:__arm64_sys_accept /pid == 1427279/ {
+  @start_accept[tid] = nsecs;
+}
+kretprobe:__arm64_sys_accept4, kretprobe:__arm64_sys_accept /@start_accept[tid]/ {
+  @accept_latency_us = hist((nsecs - @start_accept[tid]) / 1000);
+  delete(@start_accept[tid]);
+}

@@ -6,7 +6,6 @@ x-enviromments: &x-enviromments
   - FALLBACK_URL: "http://payment-processor-fallback:8080"
   - DISABLE_LOG: "true"
 
-version: '3.4'
 services:
   app1: &app
     image: docker.io/lukas8219/rinha-de-backend-2025-app:main-a52e7a23e-1753551398
@@ -19,12 +18,12 @@ services:
     ipc: host
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app1.sock"
+      # SOCKET_PATH: "/dev/shm/app1.sock"
     networks:
       - backend
       - payment-processor
     expose:
-      - "3000"
+      - "3001:3000"
     depends_on:
       lavinmq:
         condition: service_healthy
@@ -44,9 +43,11 @@ services:
     <<: *app
     user: "1001:1001"
     ipc: host
+    ports:
+      - "3002:3000"
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/app2.sock"
+      # SOCKET_PATH: "/dev/shm/app2.sock"
     hostname: app2
     depends_on:
       lavinmq:
@@ -57,12 +58,14 @@ services:
   consumer: &consumer
     <<: *app
     user: "1001:1001"
-    hostname: "1"
+    hostname: "consumer"
     ipc: host
     cpuset: "0"
     environment:
       <<: *x-enviromments
-      SOCKET_PATH: "/dev/shm/1.sock"
+      SOCKET_PATH: "/dev/shm/consumer.sock"
+      USE_HTTP: "true"
+      SHARDING_KEY: "1"
     cpu_shares: 3072
     deploy:
       resources:
@@ -107,8 +110,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.pingora
+      cache_from:
+         - docker.io/lukas8219/rinha-de-backend-2025-load-balancer-pingora:latest
     user: "1001:1001"
     ipc: host
+    security_opt:
+      - seccomp=unconfined
     environment:
       PORT: "9999"
     depends_on:
@@ -130,10 +137,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.1'
+          cpus: '0.3'
           memory: '55MB'
         reservations:
-          cpus: '0.1'
+          cpus: '0.3'
           memory: '55MB'
 networks:
   backend:

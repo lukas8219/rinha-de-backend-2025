@@ -9,7 +9,7 @@ class PubSubClient
   def initialize(url : String)
     @connection = AMQP::Client.new(url).connect
     @channel = @connection.channel
-    @queue_name = "processor:queue:#{ENV["HOSTNAME"]? || "localhost"}"
+    @queue_name = "processor:queue:#{ENV["SHARDING_KEY"]? || "localhost"}"
     @health_exchange = @channel.fanout_exchange()
     @worker_exchange = @channel.topic_exchange()
     @channel.prefetch(ENV["PREFETCH_COUNT"]? ? ENV["PREFETCH_COUNT"].to_i : 1)
@@ -27,7 +27,7 @@ class PubSubClient
 
   def subscribe(&block : AMQP::Client::DeliverMessage -> Nil)
     @channel.queue_declare(@queue_name, durable: false)
-    @channel.queue_bind(@queue_name, @worker_exchange.name, ENV["HOSTNAME"]?.not_nil!)
+    @channel.queue_bind(@queue_name, @worker_exchange.name, ENV["SHARDING_KEY"]?.not_nil!)
     @channel.basic_consume(@queue_name, no_ack: true, work_pool: System.cpu_count) do |delivery|
       block.call(delivery)
     end
