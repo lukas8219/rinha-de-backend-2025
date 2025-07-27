@@ -71,11 +71,9 @@ File.delete(socket_path) if File.exists?(socket_path)
 class HTTPHandler
   include HTTP::Handler
   @pubsub_client : PubSub::Client
-  @file : File
   
   def initialize(@consumer : Consumer)
     @pubsub_client = @consumer.pubsub_client
-    @file = File.new("/dev/shm/consumer.sock", "w")
   end
 
   def call(context : HTTP::Server::Context) : Nil
@@ -123,9 +121,7 @@ class HTTPHandler
     context.response.status_code = 200
     context.response.content_type = "application/json"
     context.request.body.not_nil!.gets_to_end
-    "ok"
     # @pubsub_client.publish_payments(context.request.body.not_nil!)
-    # @file.write(context.request.body.not_nil!.gets_to_end.to_slice)
   end
   
   private def handle_payments_summary(context : HTTP::Server::Context)

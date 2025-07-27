@@ -37,7 +37,7 @@ clean:
 	rm -rf lib/
 
 dev-server: lib build-skiplist build-json-generator
-	PORT=3000 USE_HTTP=true $(CRYSTAL_BIN) run src/server.cr
+	PORT=9999 USE_HTTP=true $(CRYSTAL_BIN) run src/server.cr
 
 dev-pingora: lib build-skiplist build-json-generator
 	PORT=9999 RUST_LOG=debug cargo run --bin pingora-server
