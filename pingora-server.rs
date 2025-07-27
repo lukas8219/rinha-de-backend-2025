@@ -1,11 +1,9 @@
-use pingora::{prelude::*, server::configuration::{Opt, ServerConf}, upstreams::peer::Peer};
+use pingora::{prelude::*, server::configuration::{Opt, ServerConf}, upstreams::peer::{Peer}, protocols::TcpKeepalive};
 use pingora::server::Server;
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use http::Method;
-use trust_dns_resolver::config::ResolverConfig;
-use trust_dns_resolver::config::ResolverOpts;
-use trust_dns_resolver::Resolver;
+use std::time::Duration;
 
 struct LB {
     write_peer1: HttpPeer,
@@ -41,10 +39,18 @@ impl ProxyHttp for LB {
 fn create_peer(host: &str, port: u16) -> HttpPeer {
     // let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default()).unwrap();
     // let resolved_hostname = resolver.lookup_ip(host).unwrap().iter().next().unwrap().to_string();
-    let peer = HttpPeer::new(format!("{}:{}", host, port), false, "".to_string());
-    HttpPeer::tcp_fast_open(&peer);
-    HttpPeer::tcp_keepalive(&peer);
-    HttpPeer::tcp_recv_buf(&peer);
+    let mut peer = HttpPeer::new(format!("{}:{}", host, port), false, "".to_string());
+    let options = peer.get_mut_peer_options().unwrap();
+    options.tcp_fast_open = true;
+    options.tcp_keepalive = Some(TcpKeepalive {
+        idle: Duration::from_secs(1),
+        interval: Duration::from_secs(10),
+        count: 3,
+        #[cfg(target_os = "linux")]
+        user_timeout: Duration::from_secs(1),
+    });
+    options.tcp_recv_buf = Some(256 * 1024);
+    options.idle_timeout = Some(Duration::from_secs(1));
     peer
 }
 

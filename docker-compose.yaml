@@ -117,6 +117,7 @@ services:
     security_opt:
       - seccomp=unconfined
     environment:
+      RUST_LOG: debug
       PORT: "9999"
     depends_on:
       - app1
