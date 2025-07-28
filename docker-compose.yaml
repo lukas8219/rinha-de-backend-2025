@@ -15,9 +15,6 @@ services:
     build:
       context: .
       target: app
-      cache_from:
-        - docker.io/lukas8219/rinha-de-backend-2025-app:latest
-        - gha
     hostname: app1
     restart: unless-stopped
     ipc: host
@@ -80,9 +77,6 @@ services:
     build:
       context: .
       target: worker
-      cache_from:
-        - docker.io/lukas8219/rinha-de-backend-2025-worker:latest
-        - gha
     depends_on:
       lavinmq:
         condition: service_healthy
