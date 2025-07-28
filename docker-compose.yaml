@@ -128,7 +128,8 @@ services:
         hard: 1000000
     networks:
       - backend
-    cpuset: "0"
+    cpuset: "1"
+    cpu_shares: 2048
     deploy:
       resources:
         limits:
