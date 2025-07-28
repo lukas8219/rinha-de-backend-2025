@@ -5,11 +5,10 @@ COPY shard.yml shard.lock ./
 RUN shards install --production
 RUN apt-get update && apt-get install -y libgcc-s1 libstdc++6 && apt install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
 
-
 FROM common AS builder
-COPY . .
 
-# Create bin directory and build the application
+COPY src ./src
+COPY Makefile ./Makefile
 RUN make build-skiplist
 RUN make build-json-generator
 RUN mkdir -p bin

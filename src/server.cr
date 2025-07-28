@@ -25,6 +25,19 @@ get "/healthcheck" do |env|
   env.response.status_code = 200
 end
 
+require "socket"
+
+# Create an HTTP client that connects via a Unix socket
+socket_path = ENV["DATABASE_URL"]? || "/dev/shm/1.sock"
+unix_socket = UNIXSocket.new(socket_path)
+database_client = HTTP::Client.new(unix_socket)
+
+get "/payments-summary" do |env|
+  env.response.content_type = "application/json"
+  env.response.status_code = 200
+  database_client.get("/payments-summary?#{env.request.query_params.to_s}").body
+end
+
 post "/payments" do |env|
   env.response.content_type = "application/json"
   
