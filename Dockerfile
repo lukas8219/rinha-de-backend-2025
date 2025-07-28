@@ -1,11 +1,12 @@
-FROM 84codes/crystal:latest-ubuntu-24.04 AS builder
+FROM 84codes/crystal:latest-ubuntu-24.04 AS common
 RUN apt-get update && apt-get install -y liblz4-dev dpkg-dev
 WORKDIR /app
 COPY shard.yml shard.lock ./
 RUN shards install --production
 RUN apt-get update && apt-get install -y libgcc-s1 libstdc++6 && apt install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of the application code
+
+FROM common AS builder
 COPY . .
 
 # Create bin directory and build the application
