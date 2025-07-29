@@ -67,10 +67,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.60'
+          cpus: '0.8'
           memory: '150MB'
         reservations:
-          cpus: '0.60'
+          cpus: '0.8'
           memory: '150MB'
     image: docker.io/lukas8219/rinha-de-backend-2025-worker:main-bb47f5b9f-1753670815
     build:
@@ -99,10 +99,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.60'
+          cpus: '0.3'
           memory: '35MB'
         reservations:
-          cpus: '0.60'
+          cpus: '0.3'
           memory: '35MB'
   nginx:
     image: nginx:latest
