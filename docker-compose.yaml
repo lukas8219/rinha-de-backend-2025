@@ -1,5 +1,5 @@
 x-enviromments: &x-enviromments
-  - AMQP_URL: "amqp://guest:guest@lavinmq:5672/?tcp_nodelay=true"
+  - AMQP_URL: "/dev/shm/lavinmq.sock"
   - PREFETCH_COUNT: "0"
   - SHARD_COUNT: "1"
   - PROCESSOR_URL: "http://payment-processor-default:8080"
@@ -82,7 +82,9 @@ services:
 
   lavinmq:
     image: cloudamqp/lavinmq:latest
+    user: "1001:1001"
     container_name: lavinmq
+    ipc: host
     healthcheck:
       test: ["CMD", "lavinmqctl", "status"]
       interval: 10s
@@ -91,6 +93,7 @@ services:
       start_period: 5s
     volumes:
       - ./lavinmq.ini:/etc/lavinmq/lavinmq.ini:ro
+      - lavinmq_data:/var/lib/lavinmq
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -138,6 +141,12 @@ services:
       - nginx_log:/var/log/nginx
 
 volumes:
+  lavinmq_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=1001,gid=1001,mode=0755"
   nginx_cache:
     driver: local
     driver_opts:

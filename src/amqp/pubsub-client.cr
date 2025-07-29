@@ -7,7 +7,7 @@ class PubSubClient
   @worker_exchange : AMQP::Client::Exchange
   @current_shard_index : Atomic(Int32)
   def initialize(url : String)
-    @connection = AMQP::Client.new(url).connect
+    @connection = AMQP::Client.new(host: url, port: 5672, vhost: "/", user: "guest", password: "guest").connect
     @channel = @connection.channel
     @queue_name = "processor:queue:#{ENV["HOSTNAME"]? || "localhost"}"
     @health_exchange = @channel.fanout_exchange()
