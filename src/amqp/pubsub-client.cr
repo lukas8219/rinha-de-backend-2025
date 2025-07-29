@@ -1,9 +1,13 @@
 require "amqp-client"
 
 class PubSubClient
+  @[ThreadLocal]
   @connection : AMQP::Client::Connection
+  @[ThreadLocal]
   @channel : AMQP::Client::Channel
+  @[ThreadLocal]
   @health_exchange : AMQP::Client::Exchange
+  @[ThreadLocal]
   @worker_exchange : AMQP::Client::Exchange
   @current_shard_index : Atomic(Int32)
   def initialize(url : String)

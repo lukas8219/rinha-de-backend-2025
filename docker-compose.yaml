@@ -1,5 +1,5 @@
 x-enviromments: &x-enviromments
-  - AMQP_URL: "amqp://guest:guest@lavinmq:5672/"
+  - AMQP_URL: "amqp://guest:guest@lavinmq:5672/?tcp_nodelay=true&send_buffer_size=1024&recv_buffer_size=1024&buffer_size=4096"
   - PREFETCH_COUNT: "0"
   - SHARD_COUNT: "1"
   - PROCESSOR_URL: "http://payment-processor-default:8080"
