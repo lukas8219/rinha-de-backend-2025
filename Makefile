@@ -37,7 +37,7 @@ clean:
 	rm -rf lib/
 
 dev-server: lib build-skiplist build-json-generator
-	SOCKET_PATH=/tmp/app1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run src/server.cr
+	DATABASE_URL=/tmp/app1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/server.cr
 
 dev-consumer: lib build-skiplist build-json-generator
 	AMQP_URL=/tmp/lavinmq.sock SOCKET_PATH=/tmp/1.sock HOSTNAME=1 SHARD_COUNT=1 $(CRYSTAL_BIN) run -Dpreview_mt -Dexecution_context src/consumer.cr 
