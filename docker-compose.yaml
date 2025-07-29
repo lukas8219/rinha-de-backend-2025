@@ -9,7 +9,7 @@ x-enviromments: &x-enviromments
 version: '3.4'
 services:
   app1: &app
-    image: docker.io/lukas8219/rinha-de-backend-2025-app:main-db265b75e-1753752055
+    image: docker.io/lukas8219/rinha-de-backend-2025-app:main-5538a05e7-1753756591
     user: "1001:1001"
     build:
       context: .
@@ -72,7 +72,7 @@ services:
         reservations:
           cpus: '0.9'
           memory: '150MB'
-    image: docker.io/lukas8219/rinha-de-backend-2025-worker:main-db265b75e-1753752055
+      image: docker.io/lukas8219/rinha-de-backend-2025-worker:main-5538a05e7-1753756591
     build:
       context: .
       target: worker
