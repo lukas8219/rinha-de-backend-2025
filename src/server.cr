@@ -23,11 +23,12 @@ require "big"
 # app1-1      |   from usr/share/crystal/src/fiber.cr:170:11 in 'run'
 # app1-1      |   from ???
 module PubSubManager
+
   @@pubsub_clients = [
-    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:`guest@localhost:5672/"),
-    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:`guest@localhost:5672/"),
-    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:`guest@localhost:5672/"),
-    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:`guest@localhost:5672/"),
+    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"),
+    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"),
+    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"),
+    PubSubClient.new(ENV["AMQP_URL"]? || "amqp://guest:guest@localhost:5672/"),
   ] of PubSubClient
 
   @@counter = Atomic(Int32).new(0)
@@ -57,7 +58,6 @@ end
 
 require "socket"
 
-# Create an HTTP client that connects via a Unix socket
 socket_path = ENV["DATABASE_URL"]? || "/dev/shm/1.sock"
 unix_socket = UNIXSocket.new(socket_path)
 database_client = HTTP::Client.new(unix_socket)
@@ -72,7 +72,7 @@ post "/payments" do |env|
   env.response.content_type = "application/json"
   
   begin
-    PubSubManager.get_pubsub_client.publish(env.request.body.not_nil!)
+    PubSubManager.get_pubsub_client().publish(env.request.body.not_nil!)
     env.response.status_code = 201    
   rescue ex : JSON::ParseException
     Log.error(exception: ex) { "Error parsing JSON" }
