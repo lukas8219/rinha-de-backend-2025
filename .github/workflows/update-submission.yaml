@@ -130,6 +130,14 @@ jobs:
           echo "📋 Services in docker-compose.yaml:"
           yq eval '.services | keys' docker-compose.yaml
 
+      - name: Install Compose and Run Dry-Run
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose version
+          docker network create payment-processor
+          docker compose up --dry-run
+
       - name: Commit and push changes
         run: |
           cd fork-repo
