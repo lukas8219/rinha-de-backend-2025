@@ -57,6 +57,7 @@ services:
   consumer: &consumer
     <<: *app
     user: "1001:1001"
+    image: docker.io/lukas8219/rinha-de-backend-2025-worker:main-5538a05e7-1753756591
     hostname: "1"
     ipc: host
     cpuset: "0"
@@ -72,7 +73,6 @@ services:
         reservations:
           cpus: '0.9'
           memory: '150MB'
-      image: docker.io/lukas8219/rinha-de-backend-2025-worker:main-5538a05e7-1753756591
     build:
       context: .
       target: worker
