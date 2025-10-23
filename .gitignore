@@ -30,3 +30,5 @@ package-lock.json
 
 database.sqlite*
 target/
+*.o
+vmlinux.h
